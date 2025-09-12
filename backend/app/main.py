@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db import ping
-from app.routers import flights
+from backend.app.routers import routers
 
 app = FastAPI(title="FlySmart API")  # <- קודם יוצרים את האובייקט
 
-app.include_router(flights.router)   # <- אחר כך מחברים את הנתיבים
+app.include_router(routers.router)   # <- אחר כך מחברים את הנתיבים
 
 app.add_middleware(
     CORSMiddleware,
