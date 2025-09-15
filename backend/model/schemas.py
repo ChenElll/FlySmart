@@ -1,18 +1,21 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-
-class FlightRead(BaseModel):
-    FlightId: int
+class FlightBase(BaseModel):
     PlaneId: int
     DepartureLocation: str
     ArrivalLocation: str
     DepartureDateTime: datetime
     EstimatedArrivalDateTime: datetime
 
+class FlightCreate(FlightBase):
+    pass
 
-class FlightRead(FlightCreate):
+class FlightUpdate(FlightBase):
+    pass
+
+class FlightRead(FlightBase):
     FlightId: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
