@@ -1,31 +1,55 @@
-✈️ FlySmart – Plane Management System
+# ✈️ FlySmart – Plane Management System
 
-A complete system for plane management built with FastAPI (Backend) and PySide6 (Frontend), following the MVC/MVP architecture.
+A modern system for managing planes with **FastAPI (Backend)** and **PySide6 (Frontend)**, designed using **MVC/MVP architecture**.  
+Built as a final project for *Windows Systems Engineering*.  
 
-📦 Installation & Setup
-1️⃣ Create Virtual Environment
-# Activate the virtual environment
+---
+
+## 📊 Badges
+![Python](https://img.shields.io/badge/python-3.12-blue.svg?logo=python&logoColor=white)  
+![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-009688?logo=fastapi)  
+![PySide6](https://img.shields.io/badge/PySide6-6.9.2-green.svg)  
+![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)  
+
+---
+
+## 📦 Installation & Setup
+
+### 1️⃣ Create Virtual Environment
+```powershell
 .\.venv\Scripts\activate
+```
 
-2️⃣ Install Dependencies
+### 2️⃣ Install Dependencies
+```powershell
 pip install -r requirements.txt
+```
 
-🚀 Run the Project
-▶ Backend (FastAPI)
+---
+
+## 🚀 Run the Project
+
+### ▶ Backend (FastAPI)
+```powershell
 uvicorn backend.view.main:app --reload --reload-dir backend
+```
 
+📍 The API will be available at:  
+👉 [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) *(Swagger UI)*  
 
-📍 The API will be available at:
-👉 http://127.0.0.1:8000/docs
- (Swagger UI)
+---
 
-▶ Frontend (PySide6 GUI)
-
+### ▶ Frontend (PySide6 GUI)
 Open a new terminal (while backend is running):
 
+```powershell
 python -m frontend.main
+```
 
-🗂 Project Structure
+---
+
+## 🗂 Project Structure
+```
 FlySmart/
 │── backend/        # Backend (FastAPI + SQLAlchemy)
 │   ├── model/      # Models, Schemas, Database
@@ -40,32 +64,36 @@ FlySmart/
 │── requirements.txt
 │── README.md
 │── .env
+```
 
-✨ Features
+---
 
-✅ Full CRUD API for planes
+## ✨ Features
+- ✅ Full **CRUD API** for planes  
+- ✅ Modern **GUI** with PySide6  
+- ✅ Clear **MVC/MVP architecture**  
+- ✅ Built-in API docs via **Swagger UI**  
+- ✅ SQLAlchemy integration with SQL Server  
 
-✅ Modern GUI with PySide6
+---
 
-✅ Clear MVC/MVP architecture (clean separation of concerns)
+## 📸 Screenshots
 
-✅ Built-in API docs via Swagger UI
+### 🔹 Swagger API
+![Swagger Screenshot](docs/screenshots/swagger.png)
 
-✅ Ready for database integration with SQLAlchemy
+### 🔹 PySide6 GUI
+![GUI Screenshot](docs/screenshots/gui.png)
 
-📸 Screenshots
+*(replace these with actual screenshots of your project)*
 
-🔹 Swagger API
-(insert screenshot of /docs)
+---
 
-🔹 PySide6 GUI
-(insert screenshot of the GUI table with planes)
+## 📑 Example API Usage
 
-📑 Example API Usage
-➕ Create Plane (POST /planes/)
-
-Request
-
+### ➕ Create Plane (POST `/planes/`)
+**Request**
+```json
 {
   "Name": "Airbus A350",
   "Year": 2021,
@@ -75,10 +103,10 @@ Request
   "NumOfSeats2": 60,
   "NumOfSeats3": 180
 }
+```
 
-
-Response
-
+**Response**
+```json
 {
   "PlaneId": 1,
   "Name": "Airbus A350",
@@ -89,6 +117,8 @@ Response
   "NumOfSeats2": 60,
   "NumOfSeats3": 180
 }
+```
 
+---
 
-✨ With FlySmart, you can easily manage planes through both a clean REST API and a beautiful desktop GUI.
+✨ With **FlySmart**, you can manage planes through both a clean **REST API** and a beautiful **desktop GUI**.  
