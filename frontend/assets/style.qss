@@ -1,0 +1,86 @@
+/* ===== Main Window ===== */
+QMainWindow {
+    background-color: #1e1e1e;   /* רקע כהה */
+    color: #e0e0e0;
+}
+
+/* ===== Title ===== */
+#TitleLabel {
+    color: #fdd835;   /* צהוב זוהר */
+    font-family: "Segoe UI";
+    font-size: 22px;
+    font-weight: bold;
+}
+
+/* ===== Buttons ===== */
+QPushButton {
+    background-color: #2e2e2e;
+    color: #f5f5f5;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #424242;
+    border: 1px solid #fdd835;
+}
+QPushButton:pressed {
+    background-color: #616161;
+}
+
+/* ===== Table ===== */
+QTableWidget {
+    background-color: #2b2b2b;
+    alternate-background-color: #333333;
+    border: 1px solid #444;
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+QTableWidget::item:selected {
+    background-color: #00bfa5; /* טורקיז */
+    color: black;
+}
+
+/* ===== Form Fields ===== */
+QLineEdit {
+    background-color: #2b2b2b;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 4px;
+    color: #f5f5f5;
+}
+QLineEdit:focus {
+    border: 1px solid #00bfa5; /* טורקיז */
+}
+QLabel {
+    color: #bbbbbb;
+}
+
+/* ===== Plane List (Right side) ===== */
+QListWidget {
+    background-color: #303030;      /* צבע רקע של כל הרשימה */
+    border: none;
+    outline: none;
+    color: #e0e0e0;
+    font-size: 14px;
+    padding: 4px;
+}
+
+QListWidget::item {
+    background-color: #4d4d4d;      /* צבע של כל כרטיס */
+    margin: 4px;                   /* רווח בין כרטיסים */
+    padding: 10px;
+    border-radius: 6px;            /* פינות מעוגלות */
+}
+
+QListWidget::item:hover {
+    background-color: #5d5d5d;      /* צבע בזמן hover */
+}
+
+QListWidget::item:selected {
+    background-color: #00bfa5;      /* highlight בטורקיז */
+    color: black;
+    font-weight: bold;
+}
