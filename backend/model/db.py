@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 load_dotenv()
 
 server   = os.getenv("DB_SERVER")
+print()
 db       = os.getenv("DB_NAME")
 user     = os.getenv("DB_USER")
 password = quote_plus(os.getenv("DB_PASSWORD", ""))

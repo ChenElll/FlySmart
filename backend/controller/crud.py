@@ -1,35 +1,56 @@
 from sqlalchemy.orm import Session
-from model.models import Flight
-from model.schemas import FlightCreate, FlightUpdate
+from backend.model.models import Plane
+from backend.model.schemas import (
+    PlaneCreate, PlaneUpdate
+)
 from fastapi import HTTPException
 
-def get_all_flights(db: Session):
-    return db.query(Flight).all()
 
-def get_flight_by_id(db: Session, flight_id: int):
-    return db.query(Flight).filter(Flight.FlightId == flight_id).first()
+#----------plane CRUD Operations----------#
 
-def create_flight(db: Session, flight_data: FlightCreate):
-    new_flight = Flight(**flight_data.model_dump())
-    db.add(new_flight)
+def get_all_planes(db: Session):
+    return db.query(Plane).all()
+
+def get_plane_by_id(db: Session, plane_id: int):
+    return db.query(Plane).filter(Plane.PlaneId == plane_id).first()
+
+def create_plane(db: Session, plane_data: PlaneCreate):
+    new_plane = Plane(**plane_data.model_dump())
+    db.add(new_plane)
     db.commit()
-    db.refresh(new_flight)
-    return new_flight
+    db.refresh(new_plane)
+    return new_plane
 
-def update_flight(db: Session, flight_id: int, flight_data: FlightUpdate):
-    flight = get_flight_by_id(db, flight_id)
-    if not flight:
-        raise HTTPException(status_code=404, detail="Flight not found")
-    for key, value in flight_data.model_dump().items():
-        setattr(flight, key, value)
+def update_plane(db: Session, plane_id: int, plane_data: PlaneUpdate):
+    plane = get_plane_by_id(db, plane_id)
+    if not plane:
+        raise HTTPException(status_code=404, detail="Plane not found")
+    for key, value in plane_data.model_dump().items():
+        setattr(plane, key, value)
     db.commit()
-    db.refresh(flight)
-    return flight
+    db.refresh(plane)
+    return plane
 
-def delete_flight(db: Session, flight_id: int):
-    flight = get_flight_by_id(db, flight_id)
-    if not flight:
-        raise HTTPException(status_code=404, detail="Flight not found")
-    db.delete(flight)
+def delete_plane(db: Session, plane_id: int):
+    plane = get_plane_by_id(db, plane_id)
+    if not plane:
+        raise HTTPException(status_code=404, detail="Plane not found")
+    
+    deleted_plane_data = {
+        "PlaneId": plane.PlaneId,
+        "Name": plane.Name,
+        "Year": plane.Year,
+        "MadeBy": plane.MadeBy,
+        "Picture": plane.Picture,
+        "NumOfSeats1": plane.NumOfSeats1,
+        "NumOfSeats2": plane.NumOfSeats2,
+        "NumOfSeats3": plane.NumOfSeats3,
+    }
+
+    db.delete(plane)
     db.commit()
-    return {"detail": "Flight deleted successfully"}
+    
+    return {
+        "detail": "Plane deleted successfully",
+        "deleted_plane": deleted_plane_data
+    }

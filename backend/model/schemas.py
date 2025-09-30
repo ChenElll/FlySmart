@@ -1,21 +1,32 @@
 from pydantic import BaseModel
-from datetime import datetime
 
-class FlightBase(BaseModel):
+
+# ------- plane-related Schemas ------- #
+class PlaneBase(BaseModel):
+    Name: str
+    Year: int
+    MadeBy: str
+    Picture: str | None = None
+    NumOfSeats1: int
+    NumOfSeats2: int
+    NumOfSeats3: int
+
+
+class PlaneCreate(PlaneBase):
+    pass
+
+
+class PlaneUpdate(PlaneBase):
+    pass
+
+
+class PlaneRead(PlaneBase):
     PlaneId: int
-    DepartureLocation: str
-    ArrivalLocation: str
-    DepartureDateTime: datetime
-    EstimatedArrivalDateTime: datetime
-
-class FlightCreate(FlightBase):
-    pass
-
-class FlightUpdate(FlightBase):
-    pass
-
-class FlightRead(FlightBase):
-    FlightId: int
 
     class Config:
         from_attributes = True
+
+
+class PlaneDeleteResponse(BaseModel):
+    detail: str
+    deleted_plane: PlaneRead

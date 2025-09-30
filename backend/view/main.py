@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from controller.routers import router
-from model.db import ping
+from backend.controller.routers import plane_router  # <- תייבאי לפי השם של הקובץ שלך
+from backend.model.db import ping
 
-app = FastAPI(title="Flight Management API")
+app = FastAPI(title="Planes Management API")
 
-app.include_router(router)
+app.include_router(plane_router)
 
 app.add_middleware(
     CORSMiddleware,

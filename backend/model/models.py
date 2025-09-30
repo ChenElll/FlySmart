@@ -1,14 +1,17 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
-class Flight(Base):
-    __tablename__ = "Flights"
+# ------- Plane Model ------- #
+class Plane(Base):
+    __tablename__ = "Planes"
 
-    FlightId = Column(Integer, primary_key=True, index=True)
-    PlaneId = Column(Integer, nullable=False)
-    DepartureLocation = Column(String, nullable=False)
-    ArrivalLocation = Column(String, nullable=False)
-    DepartureDateTime = Column(DateTime, nullable=False)
-    EstimatedArrivalDateTime = Column(DateTime, nullable=False)
+    PlaneId = Column(Integer, primary_key=True, index=True)
+    Name = Column(String, nullable=False)
+    Year = Column(Integer, nullable=False)
+    MadeBy = Column(String, nullable=False)
+    Picture = Column(String, nullable=True)
+    NumOfSeats1 = Column(Integer, nullable=False)
+    NumOfSeats2 = Column(Integer, nullable=False)
+    NumOfSeats3 = Column(Integer, nullable=False)
