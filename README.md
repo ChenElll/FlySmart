@@ -8,8 +8,7 @@ Built as a final project for *Windows Systems Engineering*.
 ## 📊 Badges
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg?logo=python&logoColor=white)  
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-009688?logo=fastapi)  
-![PySide6](https://img.shields.io/badge/PySide6-6.9.2-green.svg)  
-![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)  
+![PySide6](https://img.shields.io/badge/PySide6-6.9.2-green.svg)
 
 ---
 
