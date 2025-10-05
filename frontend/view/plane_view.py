@@ -1,13 +1,13 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QTableWidget, QTableWidgetItem, QLabel, QFormLayout, QLineEdit, QListWidget, QListWidgetItem
+    QPushButton, QLabel, QFormLayout, QLineEdit, QListWidget, QListWidgetItem, QMessageBox
 )
-from PySide6.QtGui import QFont, QIcon
+from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt
 
 
 class PlaneView(QMainWindow):
-    def __init__(self, presenter=None):
+    def __init__(self, presenter):
         super().__init__()
         self.presenter = presenter
 
@@ -15,7 +15,7 @@ class PlaneView(QMainWindow):
         with open("frontend/assets/style.qss", "r", encoding="utf-8") as f:
             self.setStyleSheet(f.read())
 
-        # אייקון החלון
+        # Window icon
         self.setWindowIcon(QIcon("frontend/assets/plane_icon.ico"))
 
         # === Main Window Settings ===
@@ -24,22 +24,21 @@ class PlaneView(QMainWindow):
 
         # === Title ===
         title = QLabel("✈ Plane Management Dashboard")
-        title.setObjectName("TitleLabel") 
+        title.setObjectName("TitleLabel")
         title.setAlignment(Qt.AlignCenter)
 
         # === CRUD Buttons ===
-        btn_add = QPushButton("➕ Add")
-        btn_update = QPushButton("✏ Update")
-        btn_delete = QPushButton("🗑 Delete")
-        btn_refresh = QPushButton("🔄 Refresh")
+        self.btn_add = QPushButton("➕ Add")
+        self.btn_update = QPushButton("✏ Update")
+        self.btn_delete = QPushButton("🗑 Delete")
+        self.btn_refresh = QPushButton("🔄 Refresh")
 
         button_layout = QHBoxLayout()
-        button_layout.addWidget(btn_add)
-        button_layout.addWidget(btn_update)
-        button_layout.addWidget(btn_delete)
+        button_layout.addWidget(self.btn_add)
+        button_layout.addWidget(self.btn_update)
+        button_layout.addWidget(self.btn_delete)
         button_layout.addStretch()
-        button_layout.addWidget(btn_refresh)
-
+        button_layout.addWidget(self.btn_refresh)
 
         # === Left Panel (Details) ===
         self.detail_panel = QWidget()
@@ -55,7 +54,7 @@ class PlaneView(QMainWindow):
 
         for widget in [
             self.id_field, self.name_field, self.year_field,
-            self.madeby_field, self.seats1_field, self.seats2_field, self.seats3_field
+            self.madeby_field, self.seats1_field, self.seats2_field, self.seats3_field,
         ]:
             widget.setReadOnly(True)
 
@@ -69,14 +68,20 @@ class PlaneView(QMainWindow):
 
         self.detail_panel.setLayout(detail_layout)
 
+        # === Right Panel (List of Planes) ===
+        self.right_list = QListWidget()
+        self.right_list.setMaximumWidth(300)
+        self.right_list.setSpacing(4)
+
         # === Layouts ===
         main_layout = QVBoxLayout()
         main_layout.addWidget(title)
         main_layout.addLayout(button_layout)
 
         content_layout = QHBoxLayout()
-        content_layout.addWidget(self.detail_panel)   # פרטים בצד שמאל
+        content_layout.addWidget(self.detail_panel)
         content_layout.addStretch()
+        content_layout.addWidget(self.right_list)
 
         main_layout.addLayout(content_layout)
 
@@ -84,21 +89,26 @@ class PlaneView(QMainWindow):
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
+        # === SIGNAL CONNECTIONS ===
+        self.btn_refresh.clicked.connect(self.presenter.load_planes)
+        self.right_list.itemClicked.connect(self.on_plane_selected)
 
-        # === Right Panel (List of Planes) ===
-        self.right_list = QListWidget()
-        self.right_list.setMaximumWidth(300)
-        self.right_list.setSpacing(4)  # רווחים בין פריטים
-
-        content_layout.addWidget(self.right_list)
+    # ------------------- Display Logic -------------------
 
     def show_planes(self, planes):
-
-        """מציג שמות מטוסים בטבלה הימנית"""
+        """מציג שמות מטוסים ברשימה הימנית"""
         self.right_list.clear()
+        self.planes = planes  # לשמירה פנימית
         for plane in planes:
             item = QListWidgetItem(plane.Name)
+            item.setData(Qt.UserRole, plane.PlaneId)
             self.right_list.addItem(item)
+
+    def on_plane_selected(self, item):
+        """כאשר המשתמש לוחץ על מטוס – שולף ומציג פרטים"""
+        plane_id = item.data(Qt.UserRole)
+        if self.presenter:
+            self.presenter.show_plane_details(plane_id)
 
     def show_plane_details(self, plane):
         """מציג פרטים בפאנל השמאלי"""
@@ -111,5 +121,4 @@ class PlaneView(QMainWindow):
         self.seats3_field.setText(str(plane.NumOfSeats3))
 
     def show_error(self, message: str):
-        from PySide6.QtWidgets import QMessageBox
         QMessageBox.critical(self, "Error", message)

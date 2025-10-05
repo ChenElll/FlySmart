@@ -5,11 +5,20 @@ from frontend.presenter.plane_presenter import PlanePresenter
 
 def main():
     app = QApplication(sys.argv)
-    view = PlaneView(None)
-    presenter = PlanePresenter(view)
-    view.presenter = presenter
 
+    # יצירת presenter ריק בינתיים (בלי view)
+    presenter = PlanePresenter(None)
+
+    # יצירת view תוך הזרקת presenter
+    view = PlaneView(presenter)
+
+    # חיבור הדדי
+    presenter.view = view
+
+    # טוענים את רשימת המטוסים
     presenter.load_planes()
+
+    # הצגת חלון
     view.show()
     sys.exit(app.exec())
 
