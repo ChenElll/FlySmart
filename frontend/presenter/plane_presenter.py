@@ -1,8 +1,11 @@
 import time
 from frontend.model.plane_entity import PlaneEntity
 import requests
+from frontend.view.plane_form_dialog import PlaneFormDialog
+
 
 API_BASE = "http://127.0.0.1:8000"
+
 
 def wait_for_backend(timeout: int = 60, interval: int = 3):
     """
@@ -30,12 +33,15 @@ class PlanePresenter:
     Acts as the middle layer between the View (PlaneView) and the Model (PlaneEntity).
     Responsible for all CRUD logic and data flow.
     """
+
     def __init__(self, view):
         self.view = view
 
     # ------------------- READ -------------------
     def load_planes(self):
         """Fetch and display all planes."""
+
+        print("📡 Fetching plane list from backend...")
         if not wait_for_backend():
             self.view.show_error("Backend server is not responding. Please start it.")
             return
@@ -51,9 +57,18 @@ class PlanePresenter:
         """Display details of a selected plane."""
         plane = PlaneEntity.get_by_id(plane_id)
         if plane:
-            self.view.show_plane_details(plane)
+            self.view.show_plane_card(plane)
         else:
             self.view.show_error(f"Plane ID {plane_id} not found.")
+
+    def open_edit_plane(self, plane):
+        """פותח חלון עריכה עם נתוני המטוס הנבחר"""
+        dialog = PlaneFormDialog(self, mode="edit", plane=plane)
+        dialog.exec()
+
+    def get_plane_by_id(self, plane_id: int):
+        """מאפשר ל־View לבקש מטוס ספציפי"""
+        return PlaneEntity.get_by_id(plane_id)
 
     # ------------------- CREATE -------------------
     def add_plane(self, name, year, made_by, picture, seats1, seats2, seats3):
@@ -77,7 +92,9 @@ class PlanePresenter:
             self.view.show_error(f"Error adding plane: {e}")
 
     # ------------------- UPDATE -------------------
-    def update_plane(self, plane_id, name, year, made_by, picture, seats1, seats2, seats3):
+    def update_plane(
+        self, plane_id, name, year, made_by, picture, seats1, seats2, seats3
+    ):
         """Update an existing plane."""
         plane = PlaneEntity(
             PlaneId=plane_id,
@@ -92,6 +109,9 @@ class PlanePresenter:
         try:
             if plane.update():
                 self.load_planes()
+                updated_plane = PlaneEntity.get_by_id(plane_id)
+                if updated_plane:
+                    self.view.show_plane_card(updated_plane)
             else:
                 self.view.show_error(f"Failed to update plane {plane_id}.")
         except Exception as e:

@@ -6,17 +6,18 @@ from PySide6.QtCore import Qt
 
 
 class PlaneFormDialog(QDialog):
-    def __init__(self, presenter, mode="add", plane=None):
+    def __init__(self, presenter, mode="add", plane=None, parent=None):
         """
         mode: "add" or "edit"
         plane: optional PlaneEntity object (for edit mode)
+        parent: parent window
         """
-        super().__init__()
+        super().__init__(parent)
         self.presenter = presenter
         self.mode = mode
         self.plane = plane
 
-        # Window setup
+        # === Window setup ===
         self.setWindowTitle("✈ Add New Plane" if mode == "add" else "✈ Update Plane")
         self.setFixedWidth(400)
         self.setStyleSheet("""
@@ -63,7 +64,7 @@ class PlaneFormDialog(QDialog):
         form_layout.addRow("Seats2:", self.seats2_input)
         form_layout.addRow("Seats3:", self.seats3_input)
 
-        # אם זה מצב עריכה – נטעין את הנתונים הקיימים
+        # === Load existing plane data (edit mode) ===
         if self.mode == "edit" and plane:
             self.name_input.setText(plane.Name)
             self.year_input.setText(str(plane.Year))
@@ -115,7 +116,9 @@ class PlaneFormDialog(QDialog):
             if self.mode == "add":
                 self.presenter.add_plane(name, year, made_by, picture, seats1, seats2, seats3)
             else:
-                self.presenter.update_plane(self.plane.PlaneId, name, year, made_by, picture, seats1, seats2, seats3)
+                self.presenter.update_plane(
+                    self.plane.PlaneId, name, year, made_by, picture, seats1, seats2, seats3
+                )
 
             self.accept()
 
