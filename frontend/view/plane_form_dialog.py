@@ -76,15 +76,65 @@ class PlaneFormDialog(QDialog):
 
         # === Buttons ===
         button_layout = QHBoxLayout()
-        save_btn = QPushButton("💾 Save")
+
+        if self.mode == "edit":
+            delete_btn = QPushButton("🗑 Delete")
+            delete_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #d32f2f;
+                    color: white;
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #b71c1c;
+                }
+            """)
+            delete_btn.clicked.connect(self.delete_plane)
+            button_layout.addWidget(delete_btn)
+
+        button_layout.addStretch()  # דוחף את שני הכפתורים הימניים לצד ימין
+
+        self.save_btn = QPushButton("💾 Save")
         cancel_btn = QPushButton("✖ Cancel")
 
-        button_layout.addStretch()
-        button_layout.addWidget(save_btn)
+        self.save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #00bfa5;
+                color: black;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1de9b6;
+            }
+        """)
+
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2e2e2e;
+                color: white;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #444;
+            }
+        """)
+
+        button_layout.addWidget(self.save_btn)
         button_layout.addWidget(cancel_btn)
 
-        save_btn.clicked.connect(self.save_plane)
+        self.save_btn.clicked.connect(self.save_plane)
         cancel_btn.clicked.connect(self.close)
+
+        # === Keyboard Enter triggers save ===
+        self.save_btn.setDefault(True)  # ⬅ מאפשר ללחוץ Enter לשמירה
+        self.save_btn.setAutoDefault(True)
+
 
         # === Main Layout ===
         layout = QVBoxLayout()
@@ -124,3 +174,22 @@ class PlaneFormDialog(QDialog):
 
         except ValueError:
             QMessageBox.warning(self, "Invalid input", "Please enter valid numbers for year and seats.")
+
+    # ---------------- DELETE ----------------
+    def delete_plane(self):
+        """Confirm and delete the selected plane."""
+        if not self.plane:
+            QMessageBox.warning(self, "Error", "No plane selected.")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            f"Are you sure you want to delete the plane '{self.plane.Name}'?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            self.presenter.delete_plane(self.plane.PlaneId)
+            QMessageBox.information(self, "Deleted", f"Plane '{self.plane.Name}' has been deleted.")
+            self.accept()  # סגור את החלון אחרי המחיקה

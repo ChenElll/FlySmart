@@ -66,6 +66,11 @@ class PlanePresenter:
         dialog = PlaneFormDialog(self, mode="edit", plane=plane)
         dialog.exec()
 
+    def open_add_plane(self):
+        """פותח חלון להוספת מטוס חדש"""
+        dialog = PlaneFormDialog(self, mode="add")
+        dialog.exec()
+
     def get_plane_by_id(self, plane_id: int):
         """מאפשר ל־View לבקש מטוס ספציפי"""
         return PlaneEntity.get_by_id(plane_id)

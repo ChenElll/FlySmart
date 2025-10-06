@@ -12,6 +12,11 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel, QPushButton
+from PySide6.QtGui import QPixmap
+from PySide6.QtCore import Qt
+import requests
+
 
 
 class PlaneView(QMainWindow):
@@ -35,6 +40,16 @@ class PlaneView(QMainWindow):
         title.setObjectName("TitleLabel")
         title.setAlignment(Qt.AlignLeft)
 
+        # === Title + Buttons ===
+        title = QLabel("✈ Plane Management Dashboard")
+        title.setObjectName("TitleLabel")
+        title.setAlignment(Qt.AlignLeft)
+
+        add_btn = QPushButton("➕")
+        add_btn.setToolTip("Add new plane")
+        add_btn.setFixedSize(32, 32)
+        add_btn.clicked.connect(self.presenter.open_add_plane)
+
         refresh_btn = QPushButton("🔄")
         refresh_btn.setToolTip("Refresh plane list")
         refresh_btn.setFixedSize(32, 32)
@@ -43,6 +58,7 @@ class PlaneView(QMainWindow):
         title_layout = QHBoxLayout()
         title_layout.addWidget(title)
         title_layout.addStretch()
+        title_layout.addWidget(add_btn)
         title_layout.addWidget(refresh_btn)
 
         # === Left Panel (placeholder for plane card) ===
@@ -58,9 +74,9 @@ class PlaneView(QMainWindow):
 
         # === Content Layout ===
         content_layout = QHBoxLayout()
-        content_layout.addWidget(self.detail_container)
+        content_layout.addWidget(self.right_list)  # עכשיו הרשימה בצד שמאל
         content_layout.addStretch()
-        content_layout.addWidget(self.right_list)
+        content_layout.addWidget(self.detail_container)  # הכרטיס עובר לימין
 
         # === Main Layout ===
         main_layout = QVBoxLayout()
@@ -87,7 +103,7 @@ class PlaneView(QMainWindow):
 
     def show_plane_card(self, plane):
         """מציג כרטיס מידע יפה בצד שמאל במקום panel ישן"""
-        # ננקה תוכן קודם (אם נבחר מטוס אחר)
+        # ננקה תוכן קודם
         for i in reversed(range(self.detail_layout.count())):
             widget = self.detail_layout.itemAt(i).widget()
             if widget:
@@ -96,42 +112,64 @@ class PlaneView(QMainWindow):
         card = QFrame()
         card.setObjectName("PlaneCard")
         card_layout = QVBoxLayout(card)
-        card_layout.setSpacing(8)
+        card_layout.setSpacing(10)
+        card_layout.setAlignment(Qt.AlignTop)
 
-        card.setStyleSheet(
-            """
-    QFrame#PlaneCard {
-        background-color: #2b2b2b;
-        border-radius: 10px;
-        border: 1px solid #444;
-        padding: 15px;
-    }
-    QLabel#PlaneCardTitle {
-        color: #00bfa5;
-        font-size: 18px;
-        font-weight: bold;
-        margin-bottom: 8px;
-    }
-"""
-        )
+        card.setStyleSheet("""
+            QFrame#PlaneCard {
+                background-color: #2b2b2b;
+                border-radius: 10px;
+                border: 1px solid #444;
+                padding: 15px;
+            }
+            QLabel#PlaneCardTitle {
+                color: #00bfa5;
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 8px;
+            }
+        """)
 
+        # === תמונה של המטוס ===
+        if plane.Picture:
+            try:
+                response = requests.get(plane.Picture, timeout=3)
+                if response.status_code == 200:
+                    pixmap = QPixmap()
+                    pixmap.loadFromData(response.content)
+                    image_label = QLabel()
+                    image_label.setPixmap(pixmap.scaledToWidth(350, Qt.SmoothTransformation))
+                    image_label.setAlignment(Qt.AlignCenter)
+                    card_layout.addWidget(image_label)
+                else:
+                    print(f"⚠ Image not found (status {response.status_code})")
+            except Exception as e:
+                print(f"⚠ Failed to load image: {e}")
+
+        # === כותרת המטוס ===
         title = QLabel(f"✈ {plane.Name}")
         title.setObjectName("PlaneCardTitle")
+        title.setAlignment(Qt.AlignCenter)
 
+        # === פרטי המטוס ===
         info = QLabel(
             f"<b>Manufacturer:</b> {plane.MadeBy}<br>"
             f"<b>Year:</b> {plane.Year}<br>"
             f"<b>Seats:</b> {plane.NumOfSeats1 + plane.NumOfSeats2 + plane.NumOfSeats3}"
         )
         info.setWordWrap(True)
+        info.setAlignment(Qt.AlignCenter)
 
+        # === כפתור עריכה ===
         edit_btn = QPushButton("✏ Edit Details")
         edit_btn.clicked.connect(lambda: self.presenter.open_edit_plane(plane))
 
+        # הוספה לכרטיס
         card_layout.addWidget(title)
         card_layout.addWidget(info)
-        card_layout.addWidget(edit_btn)
+        card_layout.addWidget(edit_btn, alignment=Qt.AlignCenter)
         card_layout.addStretch()
+
         self.detail_layout.addWidget(card)
 
     def on_plane_selected(self, item):
