@@ -1,10 +1,50 @@
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QListWidget, QListWidgetItem, QMessageBox, QFrame, QLineEdit, QComboBox
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QFrame,
+    QLineEdit,
+    QComboBox,
+    QStyledItemDelegate,
+    QSizePolicy,
+    QDockWidget,
 )
-from PySide6.QtGui import QIcon, QPixmap
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QPixmap, QPainter
+from PySide6.QtCore import Qt, QSize, QRect
 import requests
+from PySide6.QtCore import QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import QAbstractAnimation
+
+
+
+
+class PlaneIconDelegate(QStyledItemDelegate):
+    def __init__(self, icon_path, parent=None):
+        super().__init__(parent)
+        self.icon = QIcon(icon_path)
+
+    def paint(self, painter, option, index):
+        # Draw the default item (text)
+        super().paint(painter, option, index)
+        # Draw the icon at the right edge
+        icon_size = 24
+        rect = option.rect
+        icon_rect = QRect(
+            rect.right() - icon_size - 12,
+            rect.top() + (rect.height() - icon_size) // 2,
+            icon_size,
+            icon_size,
+        )
+        self.icon.paint(painter, icon_rect, Qt.AlignCenter)
+
+    def sizeHint(self, option, index):
+        return QSize(300, 48)
 
 
 class PlaneView(QMainWindow):
@@ -20,45 +60,32 @@ class PlaneView(QMainWindow):
         self.setWindowTitle("FlySmart - Plane Management")
         self.resize(1200, 700)
 
-        # === Title + Buttons ===
-        title = QLabel("✈ Plane Management Dashboard")
-        title.setObjectName("TitleLabel")
-        title.setAlignment(Qt.AlignLeft)
-
-        add_btn = QPushButton("➕")
-        add_btn.setToolTip("Add new plane")
-        add_btn.setFixedSize(32, 32)
-        add_btn.clicked.connect(self.presenter.open_add_plane)
-
-        refresh_btn = QPushButton("🔄")
-        refresh_btn.setToolTip("Refresh plane list")
-        refresh_btn.setFixedSize(32, 32)
-        refresh_btn.clicked.connect(self.presenter.load_planes)
-
-        title_layout = QHBoxLayout()
-        title_layout.addWidget(title)
-        title_layout.addStretch()
-        title_layout.addWidget(add_btn)
-        title_layout.addWidget(refresh_btn)
-
         # === LEFT: Plane List + Search ===
         self.right_list = QListWidget()
         self.right_list.setSpacing(4)
-        self.right_list.setMaximumWidth(320)
+        self.right_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        # Search & Filters
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("🔍 Search by name...")
         self.search_bar.textChanged.connect(self.apply_filters)
 
         self.manufacturer_filter = QComboBox()
-        self.manufacturer_filter.addItems([
-            "All Manufacturers", "Boeing", "Airbus", "Embraer", "Bombardier", "McDonnell Douglas"
-        ])
+        self.manufacturer_filter.addItems(
+            [
+                "All Manufacturers",
+                "Boeing",
+                "Airbus",
+                "Embraer",
+                "Bombardier",
+                "McDonnell Douglas",
+            ]
+        )
         self.manufacturer_filter.currentIndexChanged.connect(self.apply_filters)
 
         self.seats_filter = QComboBox()
-        self.seats_filter.addItems(["All Sizes", "Small (≤100)", "Medium (101–250)", "Large (>250)"])
+        self.seats_filter.addItems(
+            ["All Sizes", "Small (≤100)", "Medium (101–250)", "Large (>250)"]
+        )
         self.seats_filter.currentIndexChanged.connect(self.apply_filters)
 
         reset_btn = QPushButton("♻ Reset")
@@ -73,32 +100,86 @@ class PlaneView(QMainWindow):
 
         left_panel = QVBoxLayout()
         left_panel.addLayout(filters_layout)
-        left_panel.addWidget(self.right_list)
+        left_panel.addWidget(self.right_list, stretch=1)
 
-        left_widget = QWidget()
-        left_widget.setLayout(left_panel)
-        left_widget.setMaximumWidth(350)
+        left_widget_content = QWidget()
+        left_widget_content.setLayout(left_panel)
+
+        self.left_dock = QDockWidget("", self)
+        self.left_dock.setWidget(left_widget_content)
+        self.left_dock.setFeatures(QDockWidget.NoDockWidgetFeatures)
+        self.left_dock.setAllowedAreas(Qt.LeftDockWidgetArea)
+        self.left_dock.setFixedWidth(380)
+        self.left_dock.hide()
+
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.left_dock)
+
+        # === כפתור לפתיחת הרשימה ===
+        self.menu_btn = QPushButton()
+        self.menu_btn.setIcon(QIcon("frontend/assets/icons/menu.svg"))
+        self.menu_btn.setFixedSize(40, 40)
+        self.menu_btn.setObjectName("RoundIconButton")
+        self.menu_btn.clicked.connect(self.toggle_left_widget)
+
+        menu_layout = QVBoxLayout()
+        menu_layout.addWidget(self.menu_btn)
+        menu_layout.addStretch()
+        self.menu_widget = QWidget()
+        self.menu_widget.setLayout(menu_layout)
+        self.menu_widget.setMaximumWidth(60)
+
+        # === Buttons (העבר לצד ימין למעלה) ===
+        add_btn = QPushButton()
+        add_btn.setIcon(QIcon("frontend/assets/icons/plus.svg"))
+        add_btn.setToolTip("Add new plane")
+        add_btn.setFixedSize(42, 42)
+        add_btn.setObjectName("RoundIconButton")
+        add_btn.clicked.connect(self.presenter.open_add_plane)
+
+        refresh_btn = QPushButton()
+        refresh_btn.setIcon(QIcon("frontend/assets/icons/refresh.svg"))
+        refresh_btn.setToolTip("Refresh plane list")
+        refresh_btn.setFixedSize(42, 42)
+        refresh_btn.setObjectName("RoundIconButton")
+        refresh_btn.clicked.connect(self.presenter.load_planes)
+
+        top_bar = QHBoxLayout()
+        top_bar.addWidget(add_btn)
+        top_bar.addWidget(refresh_btn)
+        top_bar.addStretch()
+        top_bar.setContentsMargins(10, 10, 10, 10)
+        top_bar_widget = QWidget()
+        top_bar_widget.setLayout(top_bar)
 
         # === RIGHT: Plane Details Card ===
         self.detail_container = QWidget()
         self.detail_layout = QVBoxLayout(self.detail_container)
         self.detail_layout.setAlignment(Qt.AlignTop)
-        self.detail_container.setMinimumWidth(400)
 
         # === Combine Layouts ===
-        content_layout = QHBoxLayout()
-        content_layout.addWidget(left_widget)
-        content_layout.addWidget(self.detail_container)
+        self.content_layout = QHBoxLayout()
+        self.content_layout.addWidget(
+            self.menu_widget, alignment=Qt.AlignLeft | Qt.AlignTop
+        )
+        self.content_layout.addSpacing(40)
+        right_panel = QVBoxLayout()
+        right_panel.addWidget(top_bar_widget, alignment=Qt.AlignRight)
+        right_panel.addWidget(self.detail_container)
+        right_panel.addStretch()
+        self.right_panel_widget = QWidget()
+        self.right_panel_widget.setLayout(right_panel)
+        self.content_layout.addWidget(
+            self.right_panel_widget, alignment=Qt.AlignVCenter
+        )
+        self.content_layout.addStretch(1)
 
         main_layout = QVBoxLayout()
-        main_layout.addLayout(title_layout)
-        main_layout.addLayout(content_layout)
-
+        main_layout.addLayout(self.content_layout)
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
-        # === SIGNAL CONNECTIONS ===
+        # Connect itemClicked signal to the slot
         self.right_list.itemClicked.connect(self.on_plane_selected)
 
     # ------------------- Display Logic -------------------
@@ -123,7 +204,9 @@ class PlaneView(QMainWindow):
             total_seats = plane.NumOfSeats1 + plane.NumOfSeats2 + plane.NumOfSeats3
             if (
                 search_text in plane.Name.lower()
-                and (manufacturer == "All Manufacturers" or plane.MadeBy == manufacturer)
+                and (
+                    manufacturer == "All Manufacturers" or plane.MadeBy == manufacturer
+                )
                 and (
                     seat_filter == "All Sizes"
                     or (seat_filter == "Small (≤100)" and total_seats <= 100)
@@ -131,7 +214,8 @@ class PlaneView(QMainWindow):
                     or (seat_filter == "Large (>250)" and total_seats > 250)
                 )
             ):
-                item = QListWidgetItem(plane.Name)
+                item_text = f"{plane.Name}"
+                item = QListWidgetItem(item_text)
                 item.setData(Qt.UserRole, plane.PlaneId)
                 self.right_list.addItem(item)
 
@@ -162,6 +246,24 @@ class PlaneView(QMainWindow):
         card_layout.setSpacing(10)
         card_layout.setAlignment(Qt.AlignTop)
 
+        card.setFixedWidth(380)
+        card.setStyleSheet(
+            """
+            QFrame#PlaneCard {
+                background-color: #1c1c1c;
+                border-radius: 12px;
+                border: 1px solid #333;
+                padding: 12px;
+            }
+            QLabel#PlaneCardTitle {
+                color: #00C2A8;
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 6px;
+            }
+        """
+        )
+
         # === תמונה של המטוס ===
         if plane.Picture:
             try:
@@ -170,7 +272,11 @@ class PlaneView(QMainWindow):
                     pixmap = QPixmap()
                     pixmap.loadFromData(response.content)
                     image_label = QLabel()
-                    image_label.setPixmap(pixmap.scaledToWidth(350, Qt.SmoothTransformation))
+                    image_label.setPixmap(
+                        pixmap.scaled(
+                            300, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                        )
+                    )
                     image_label.setAlignment(Qt.AlignCenter)
                     card_layout.addWidget(image_label)
             except Exception as e:
@@ -199,3 +305,45 @@ class PlaneView(QMainWindow):
 
     def show_error(self, message: str):
         QMessageBox.critical(self, "Error", message)
+
+    def toggle_left_widget(self):
+        """פותח/סוגר את רשימת המטוסים עם אנימציה חלקה"""
+        if (
+            hasattr(self, "dock_animation")
+            and self.dock_animation.state() == QAbstractAnimation.Running
+        ):
+            return  # למנוע לחיצה כפולה בזמן אנימציה
+
+        start_width = self.left_dock.width()
+        end_width = 0 if self.left_dock.isVisible() else 380
+
+        # אם נסגר – נציג לפני שמתחילים להרחיב
+        if not self.left_dock.isVisible():
+            self.left_dock.show()
+
+        self.dock_animation = QPropertyAnimation(self.left_dock, b"maximumWidth")
+        self.dock_animation.setDuration(300)
+        self.dock_animation.setStartValue(start_width)
+        self.dock_animation.setEndValue(end_width)
+        self.dock_animation.setEasingCurve(QEasingCurve.OutCubic)
+        self.dock_animation.start()
+
+        # אם נסגר – נסתיר בסוף האנימציה
+        if self.left_dock.isVisible() and end_width == 0:
+            self.dock_animation.finished.connect(self.left_dock.hide)
+
+    def mousePressEvent(self, event):
+        # אם לוחצים מחוץ ל-left_dock והכפתור, הרשימה תיסגר
+        if self.left_dock.isVisible():
+            global_pos = self.mapToGlobal(event.pos())
+            dock_rect = self.left_dock.geometry()
+            dock_global = self.left_dock.mapToGlobal(dock_rect.topLeft())
+            dock_rect_global = QRect(dock_global, dock_rect.size())
+            menu_rect = self.menu_widget.geometry()
+            menu_global = self.menu_widget.mapToGlobal(menu_rect.topLeft())
+            menu_rect_global = QRect(menu_global, menu_rect.size())
+            if not dock_rect_global.contains(
+                global_pos
+            ) and not menu_rect_global.contains(global_pos):
+                self.left_dock.hide()
+        super().mousePressEvent(event)

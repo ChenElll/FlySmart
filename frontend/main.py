@@ -1,26 +1,51 @@
 import sys
-from PySide6.QtWidgets import QApplication
-from frontend.view.plane_view import PlaneView
+import traceback
+from PySide6.QtWidgets import QApplication, QMessageBox
+from frontend.view.plane_view1 import PlaneView
 from frontend.presenter.plane_presenter import PlanePresenter
 
+# --- טיפול כולל בשגיאות כדי למנוע סגירה פתאומית ---
+def _exception_hook(exc_type, exc_value, exc_tb):
+    tb = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+    try:
+        print("⛔ Unexpected Error:\n", tb)
+        msg = QMessageBox()
+        msg.setWindowTitle("Unexpected Error")
+        msg.setIcon(QMessageBox.Critical)
+        msg.setText("An unexpected error occurred.")
+        msg.setDetailedText(tb)
+        msg.exec()
+    except Exception:
+        # fallback למקרה שאין QApplication פעיל
+        print(tb, file=sys.stderr)
+    sys.__excepthook__(exc_type, exc_value, exc_tb)
+
+sys.excepthook = _exception_hook
+
+# --- הפונקציה הראשית ---
 def main():
     app = QApplication(sys.argv)
 
-    # יצירת presenter ריק בינתיים (בלי view)
     presenter = PlanePresenter(None)
-
-    # יצירת view תוך הזרקת presenter
     view = PlaneView(presenter)
-
-    # חיבור הדדי
     presenter.view = view
-
-    # טוענים את רשימת המטוסים
-    presenter.load_planes()
 
     # הצגת חלון
     view.show()
-    sys.exit(app.exec())
+
+    try:
+        sys.exit(app.exec())
+    except Exception:
+        # במקרה שמשהו קורס תוך כדי לולאת האירועים
+        tb = traceback.format_exc()
+        print("Crash inside app.exec():\n", tb)
+        msg = QMessageBox()
+        msg.setWindowTitle("Critical Crash")
+        msg.setIcon(QMessageBox.Critical)
+        msg.setText("Application crashed.")
+        msg.setDetailedText(tb)
+        msg.exec()
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

@@ -1,7 +1,7 @@
+# frontend/model/plane_entity.py
 from dataclasses import dataclass
-import requests
-
-API_BASE_URL = "http://127.0.0.1:8000/planes"
+from typing import Optional, List
+from .http import session, PLANES_URL, DEFAULT_TIMEOUT
 
 @dataclass
 class PlaneEntity:
@@ -9,27 +9,30 @@ class PlaneEntity:
     Name: str
     Year: int
     MadeBy: str
-    Picture: str | None
+    Picture: Optional[str]
     NumOfSeats1: int
     NumOfSeats2: int
     NumOfSeats3: int
 
     @classmethod
-    def from_dict(cls, data: dict):
+    def from_dict(cls, d: dict):
+        pid = d.get("PlaneId")
+        # אם ה־API הישן מחזיר FlightId — עדיף לתקן בשרת; בינתיים:
+        if pid is None and "FlightId" in d:
+            pid = d["FlightId"]
         return cls(
-            PlaneId=data.get("FlightId") or data.get("PlaneId"),
-            Name=data.get("Name"),
-            Year=data.get("Year"),
-            MadeBy=data.get("MadeBy"),
-            Picture=data.get("Picture"),
-            NumOfSeats1=data.get("NumOfSeats1"),
-            NumOfSeats2=data.get("NumOfSeats2"),
-            NumOfSeats3=data.get("NumOfSeats3"),
+            PlaneId=int(pid),
+            Name=str(d.get("Name", "")),
+            Year=int(d.get("Year", 0)),
+            MadeBy=str(d.get("MadeBy", "")),
+            Picture=d.get("Picture") or None,
+            NumOfSeats1=int(d.get("NumOfSeats1", 0)),
+            NumOfSeats2=int(d.get("NumOfSeats2", 0)),
+            NumOfSeats3=int(d.get("NumOfSeats3", 0)),
         )
 
-    def to_dict(self):
-        return {
-            "PlaneId": self.PlaneId,
+    def to_dict(self, include_id=True):
+        data = {
             "Name": self.Name,
             "Year": self.Year,
             "MadeBy": self.MadeBy,
@@ -38,53 +41,37 @@ class PlaneEntity:
             "NumOfSeats2": self.NumOfSeats2,
             "NumOfSeats3": self.NumOfSeats3,
         }
-
-    # ---------- API Methods ----------
-    @staticmethod
-    def get_all():
-        """Fetch all planes from backend"""
-        try:
-            res = requests.get(API_BASE_URL)
-            res.raise_for_status()
-            return [PlaneEntity.from_dict(p) for p in res.json()]
-        except requests.exceptions.RequestException as e:
-            print(f"[ERROR] Failed to fetch planes: {e}")
-            return []
+        if include_id:
+            data["PlaneId"] = self.PlaneId
+        return data
 
     @staticmethod
-    def get_by_id(plane_id: int):
-        try:
-            res = requests.get(f"{API_BASE_URL}/{plane_id}")
-            res.raise_for_status()
-            return PlaneEntity.from_dict(res.json())
-        except requests.exceptions.RequestException as e:
-            print(f"[ERROR] Failed to fetch plane {plane_id}: {e}")
-            return None
+    def get_all() -> List["PlaneEntity"]:
+        r = session.get(PLANES_URL, timeout=DEFAULT_TIMEOUT)
+        r.raise_for_status()
+        return [PlaneEntity.from_dict(p) for p in r.json()]
 
-    def create(self):
-        """Send POST request to create plane"""
-        try:
-            res = requests.post(API_BASE_URL, json=self.to_dict())
-            res.raise_for_status()
-            return True
-        except requests.exceptions.RequestException as e:
-            print(f"[ERROR] Failed to create plane: {e}")
-            return False
+    @staticmethod
+    def get_by_id(plane_id: int) -> Optional["PlaneEntity"]:
+        r = session.get(f"{PLANES_URL}/{plane_id}", timeout=DEFAULT_TIMEOUT)
+        r.raise_for_status()
+        return PlaneEntity.from_dict(r.json())
 
-    def update(self):
-        try:
-            res = requests.put(f"{API_BASE_URL}/{self.PlaneId}", json=self.to_dict())
-            res.raise_for_status()
-            return True
-        except requests.exceptions.RequestException as e:
-            print(f"[ERROR] Failed to update plane {self.PlaneId}: {e}")
-            return False
+    def create(self) -> bool:
+        # אל תשלחי PlaneId ביצירה
+        r = session.post(PLANES_URL, json=self.to_dict(include_id=False), timeout=DEFAULT_TIMEOUT)
+        r.raise_for_status()
+        created = r.json()
+        if isinstance(created, dict) and created.get("PlaneId"):
+            self.PlaneId = int(created["PlaneId"])
+        return True
 
-    def delete(self):
-        try:
-            res = requests.delete(f"{API_BASE_URL}/{self.PlaneId}")
-            res.raise_for_status()
-            return True
-        except requests.exceptions.RequestException as e:
-            print(f"[ERROR] Failed to delete plane {self.PlaneId}: {e}")
-            return False
+    def update(self) -> bool:
+        r = session.put(f"{PLANES_URL}/{self.PlaneId}", json=self.to_dict(), timeout=DEFAULT_TIMEOUT)
+        r.raise_for_status()
+        return True
+
+    def delete(self) -> bool:
+        r = session.delete(f"{PLANES_URL}/{self.PlaneId}", timeout=DEFAULT_TIMEOUT)
+        r.raise_for_status()
+        return True

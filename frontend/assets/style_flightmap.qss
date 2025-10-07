@@ -1,0 +1,150 @@
+/* ======== GLOBAL MAP THEME ======== */
+QMainWindow {
+    background-color: qradialgradient(
+        cx:0.5, cy:0.5, radius:1.2,
+        fx:0.5, fy:0.5,
+        stop:0 #0F1113,
+        stop:1 #15191D
+    );
+    background-image: url("https://i.imgur.com/HT8tD1C.png"); /* קווי רשת עדינים */
+    background-repeat: repeat;
+    color: #E8E8E8;
+    font-family: "Segoe UI", "Roboto";
+    font-size: 14px;
+}
+
+/* ======== TITLE ======== */
+#TitleLabel {
+    color: #FFD54F;   /* זהב חמים */
+    font-size: 22px;
+    font-weight: bold;
+    text-shadow: 0 0 6px #000;
+}
+
+/* ======== BUTTONS ======== */
+QPushButton {
+    background-color: #1E1E1E;
+    color: #E0E0E0;
+    border: 1px solid #2E2E2E;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-weight: 600;
+    transition: background-color 0.3s ease, border 0.3s ease;
+}
+QPushButton:hover {
+    background-color: #00C2A8;
+    color: #000;
+}
+QPushButton:pressed {
+    background-color: #009B84;
+    color: #FFF;
+}
+
+/* ======== SEARCH BAR ======== */
+QLineEdit {
+    background-color: rgba(20, 22, 25, 0.9);
+    border: 1px solid #00C2A8;
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: #E0E0E0;
+    font-size: 14px;
+}
+QLineEdit:focus {
+    border: 1px solid #FFD54F;
+    background-color: rgba(30, 35, 40, 0.95);
+}
+
+/* ======== DROPDOWNS ======== */
+QComboBox {
+    background-color: rgba(25, 25, 25, 0.9);
+    color: #E0E0E0;
+    border: 1px solid #2E2E2E;
+    border-radius: 6px;
+    padding: 6px;
+}
+QComboBox:hover {
+    border-color: #00C2A8;
+}
+
+/* ======== PLANE LIST ======== */
+QListWidget {
+    background-color: rgba(20, 20, 20, 0.7);
+    border: 1px solid #2B2B2B;
+    border-radius: 10px;
+    color: #E0E0E0;
+    font-size: 14px;
+    padding: 4px;
+}
+QListWidget::item {
+    background-color: rgba(43, 43, 43, 0.9);
+    margin: 4px;
+    padding: 10px;
+    border-radius: 6px;
+}
+QListWidget::item:hover {
+    background-color: rgba(0, 194, 168, 0.2);
+}
+QListWidget::item:selected {
+    background-color: #00C2A8;
+    color: #000;
+    font-weight: bold;
+}
+
+/* ======== PLANE CARD ======== */
+#PlaneCard {
+    background-color: rgba(25, 28, 32, 0.85);
+    border: 1px solid rgba(0, 194, 168, 0.4);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 194, 168, 0.15);
+}
+#PlaneCardTitle {
+    color: #00E6C8;
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    text-shadow: 0 0 6px rgba(0, 255, 210, 0.3);
+}
+
+/* ======== PLANE IMAGE ======== */
+QLabel#PlaneImage {
+    border-radius: 12px;
+    border: 1px solid #333;
+    margin-bottom: 10px;
+}
+
+/* ======== SCROLLBAR ======== */
+QScrollBar:vertical {
+    background: rgba(15,15,15,0.7);
+    width: 12px;
+}
+QScrollBar::handle:vertical {
+    background: #00C2A8;
+    border-radius: 6px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #1DE9B6;
+}
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+/* ======== DIALOG WINDOWS ======== */
+QDialog {
+    background-color: rgba(30, 35, 40, 0.95);
+    color: #E0E0E0;
+    border-radius: 12px;
+}
+QDialog QLabel {
+    color: #E0E0E0;
+}
+QDialog QPushButton {
+    background-color: #00C2A8;
+    color: #000;
+    border-radius: 6px;
+    font-weight: bold;
+}
+QDialog QPushButton:hover {
+    background-color: #1DE9B6;
+}
