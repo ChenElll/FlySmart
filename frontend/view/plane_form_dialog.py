@@ -8,14 +8,14 @@ import requests
 
 
 class PlaneFormDialog(QDialog):
-    """חלון עריכת/הוספת מטוס – ללא threads"""
+    """חלון עריכה/הוספה של מטוס — כולל מחיקה וסגירת חלונות"""
     def __init__(self, presenter, mode="add", plane=None):
         super().__init__()
         self.presenter = presenter
         self.mode = mode
         self.plane = plane
 
-        self.setWindowTitle("✈ Edit Plane" if mode == "edit" else "Add New Plane")
+        self.setWindowTitle("✈ Edit Plane" if mode == "edit" else "➕ Add New Plane")
         self.setModal(True)
         self.setFixedSize(520, 720)
         self._build_ui()
@@ -110,9 +110,13 @@ class PlaneFormDialog(QDialog):
         btn_box = QHBoxLayout()
         btn_box.setSpacing(14)
 
-        save_btn = QPushButton("Save")
+        save_btn = QPushButton("💾 Save")
         save_btn.setObjectName("saveBtn")
         save_btn.clicked.connect(self._on_save)
+
+        delete_btn = QPushButton("🗑 Delete")
+        delete_btn.setObjectName("deleteBtn")
+        delete_btn.clicked.connect(self._on_delete)
 
         cancel_btn = QPushButton("✖ Cancel")
         cancel_btn.setObjectName("cancelBtn")
@@ -120,10 +124,12 @@ class PlaneFormDialog(QDialog):
 
         btn_box.addStretch()
         btn_box.addWidget(save_btn)
+        if self.mode == "edit":
+            btn_box.addWidget(delete_btn)
         btn_box.addWidget(cancel_btn)
         layout.addLayout(btn_box)
 
-        # עיצוב שדות וכפתורים
+        # --- עיצוב ---
         self.setStyleSheet("""
             QLineEdit {
                 border: none;
@@ -154,6 +160,13 @@ class PlaneFormDialog(QDialog):
                 color: #4BA3C7;
             }
             QPushButton#cancelBtn:hover { background-color: #D7EEF3; }
+            QPushButton#deleteBtn {
+                background-color: #FAD4D4;
+                color: #A60000;
+            }
+            QPushButton#deleteBtn:hover {
+                background-color: #F8BABA;
+            }
         """)
 
     # ------------------------------------------------------------
@@ -243,3 +256,47 @@ class PlaneFormDialog(QDialog):
             self.presenter.add_plane(name, year, made_by, picture, s1, s2, s3)
 
         self.accept()
+
+    # ------------------------------------------------------------
+    def _on_delete(self):
+        """מאשר ומוחק את המטוס הנוכחי וסוגר את כל החלונות הקטנים"""
+        if not self.plane:
+            return
+
+        confirm = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            f"Are you sure you want to delete '{self.plane.Name}'?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if confirm == QMessageBox.Yes:
+            try:
+                # מוחק מה־DB
+                self.presenter.delete_plane(self.plane.PlaneId)
+
+                # ✨ סגירת חלון פרטים אם פתוח
+                if hasattr(self.presenter.view, "active_details_dialog") and self.presenter.view.active_details_dialog:
+                    try:
+                        self.presenter.view.active_details_dialog.close()
+                        self.presenter.view.active_details_dialog = None
+                    except Exception:
+                        pass
+
+                # ✨ רענון רשימת המטוסים הראשית
+                self.presenter.load_planes()
+
+                # ✨ סגירת חלון העריכה עצמו
+                self.accept()
+
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to delete plane: {e}")
+
+    # ------------------------------------------------------------
+    def keyPressEvent(self, event):
+        """מאפשר שמירה ע"י לחיצה על Enter"""
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            self._on_save()
+        else:
+            super().keyPressEvent(event)

@@ -282,10 +282,21 @@ class PlaneView(QWidget):
     # פתיחת חלון פרטים
     # ============================================================
     def open_plane_details(self, plane):
+        """פותח חלון פרטים של מטוס ושומר עליו הפניה כדי שנוכל לסגור או לרענן מאוחר יותר"""
+        # אם כבר פתוח חלון פרטים אחר → נסגור אותו לפני פתיחה חדשה
+        if hasattr(self, "active_details_dialog") and self.active_details_dialog:
+            try:
+                self.active_details_dialog.close()
+            except Exception:
+                pass
+
+        # פתיחת חלון פרטים חדש
         dialog = PlaneDetailsDialog(self, plane, self.cache_manager, self.presenter)
-        self.active_details_dialog = dialog  # 👈 נוספה שורה
+        self.active_details_dialog = dialog  # ✨ שמירת הפניה
         dialog.exec()
-        self.active_details_dialog = None  # ניקוי לאחר סגירה
+
+        # לאחר סגירה — ניקוי ההפניה
+        self.active_details_dialog = None
 
     def show_error(self, msg):
         QMessageBox.critical(self, "Error", msg)
