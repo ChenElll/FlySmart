@@ -1,7 +1,7 @@
 import sys
 import traceback
 from PySide6.QtWidgets import QApplication, QMessageBox
-from frontend.view.plane_view1 import PlaneView
+from frontend.view.plane_view import PlaneView
 from frontend.presenter.plane_presenter import PlanePresenter
 
 # --- טיפול כולל בשגיאות כדי למנוע סגירה פתאומית ---

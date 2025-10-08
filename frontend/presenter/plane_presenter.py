@@ -1,6 +1,7 @@
 import time
 from frontend.model.plane_entity import PlaneEntity
 import requests
+from frontend.view.plane_details_dialog import PlaneDetailsDialog
 from frontend.view.plane_form_dialog import PlaneFormDialog
 
 
@@ -57,7 +58,7 @@ class PlanePresenter:
         """Display details of a selected plane."""
         plane = PlaneEntity.get_by_id(plane_id)
         if plane:
-            self.view.show_plane_card(plane)
+            self.view.open_plane_details(plane)
         else:
             self.view.show_error(f"Plane ID {plane_id} not found.")
 
@@ -113,10 +114,15 @@ class PlanePresenter:
         )
         try:
             if plane.update():
-                self.load_planes()
                 updated_plane = PlaneEntity.get_by_id(plane_id)
                 if updated_plane:
-                    self.view.show_plane_card(updated_plane)
+                    # רענון הרשימה
+                    self.load_planes()
+                    if (
+                        hasattr(self.view, "active_details_dialog")
+                        and self.view.active_details_dialog
+                    ):
+                        self.view.active_details_dialog.refresh_data(updated_plane)
             else:
                 self.view.show_error(f"Failed to update plane {plane_id}.")
         except Exception as e:
