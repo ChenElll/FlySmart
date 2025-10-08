@@ -1,146 +1,105 @@
-import time
-from frontend.model.plane_entity import PlaneEntity
-import requests
-from frontend.view.plane_details_dialog import PlaneDetailsDialog
-from frontend.view.plane_form_dialog import PlaneFormDialog
-
-
-API_BASE = "http://127.0.0.1:8000"
-
-
-def wait_for_backend(timeout: int = 60, interval: int = 3):
-    """
-    Wait until the backend is available or timeout is reached.
-    """
-    start = time.time()
-    while True:
-        try:
-            response = requests.get(f"{API_BASE}/docs", timeout=2)
-            if response.status_code == 200:
-                print("✅ Backend is available!")
-                return True
-        except requests.exceptions.RequestException:
-            print("⏳ Waiting for backend to start...")
-
-        if time.time() - start > timeout:
-            print("❌ Backend did not start in time.")
-            return False
-
-        time.sleep(interval)
+from PySide6.QtWidgets import QMessageBox
+from ..model.plane_entity import PlaneEntity
+from ..view.plane_form_dialog import PlaneFormDialog
+from ..model.plane_entity import PlaneEntity
+print("Loaded PlaneEntity from:", PlaneEntity.__module__)
+print("create type:", type(PlaneEntity.create))
 
 
 class PlanePresenter:
-    """
-    Acts as the middle layer between the View (PlaneView) and the Model (PlaneEntity).
-    Responsible for all CRUD logic and data flow.
-    """
+    """שכבת ביניים בין ה־View למודל — מנהלת CRUD למטוסים"""
 
     def __init__(self, view):
         self.view = view
 
-    # ------------------- READ -------------------
+    # ------------------------------------------------------------
     def load_planes(self):
-        """Fetch and display all planes."""
+        """טוען את רשימת המטוסים מהשרת"""
+        try:
+            planes = PlaneEntity.get_all()
+            self.view.show_planes(planes)
+        except Exception as e:
+            QMessageBox.critical(self.view, "Error", f"Failed to load planes:\n{e}")
 
-        print("📡 Fetching plane list from backend...")
-        if not wait_for_backend():
-            self.view.show_error("Backend server is not responding. Please start it.")
-            return
+    # ------------------------------------------------------------
+    def add_plane(self, data: dict):
+        """הוספת מטוס חדש"""
+        try:
+            plane = PlaneEntity(**data)  # יוצרים מופע חדש
+            plane.create()               # שולחים לשרת
+            self.view.add_plane_card(plane)
+            return True, ""
+        except Exception as e:
+            return False, f"Error adding plane: {e}"
 
-        planes = PlaneEntity.get_all()
-        if not planes:
-            self.view.show_error("No planes found or failed to load.")
-            return
+    # ------------------------------------------------------------
+    def update_plane(self, plane_id: int, data: dict):
+        """עדכון נתוני מטוס קיים"""
+        try:
+            plane = PlaneEntity.update(plane_id, data)
+            if plane:
+                if hasattr(self.view, "refresh_plane_card"):
+                    self.view.refresh_plane_card(plane)
+                return True, ""
+            return False, "Failed to update plane."
+        except Exception as e:
+            return False, f"Error updating plane: {e}"
 
-        self.view.show_planes(planes)
 
-    def show_plane_details(self, plane_id: int):
-        """Display details of a selected plane."""
-        plane = PlaneEntity.get_by_id(plane_id)
-        if plane:
-            self.view.open_plane_details(plane)
-        else:
-            self.view.show_error(f"Plane ID {plane_id} not found.")
+    # ------------------------------------------------------------
+    def delete_plane(self, plane_id: int):
+        """מחיקת מטוס לפי מזהה"""
+        try:
+            plane = PlaneEntity.get_by_id(plane_id)
+            if not plane:
+                return False, "Plane not found."
 
-    def open_edit_plane(self, plane):
-        """פותח חלון עריכה עם נתוני המטוס הנבחר"""
-        dialog = PlaneFormDialog(self, mode="edit", plane=plane)
-        dialog.exec()
+            plane.delete()
 
+            if hasattr(self.view, "remove_plane_card"):
+                self.view.remove_plane_card(plane_id)
+
+            return True, "Plane deleted successfully."
+        except Exception as e:
+            return False, f"Error deleting plane: {e}"
+
+    # ------------------------------------------------------------
+    def save_plane(self, mode: str, data: dict, plane=None):
+        """שומר או מעדכן מטוס בהתאם למצב"""
+        try:
+            if mode == "add":
+                return self.add_plane(data)
+            elif mode == "edit" and plane:
+                return self.update_plane(plane.PlaneId, data)
+            else:
+                return False, "Invalid save mode."
+        except Exception as e:
+            return False, f"Unexpected error while saving: {e}"
+
+    # ------------------------------------------------------------
     def open_add_plane(self):
         """פותח חלון להוספת מטוס חדש"""
-        dialog = PlaneFormDialog(self, mode="add")
-        dialog.exec()
+        try:
+            dialog = PlaneFormDialog(self, mode="add")
+            if dialog.exec():
+                self.load_planes()  # רענון לאחר שמירה
+        except Exception as e:
+            QMessageBox.critical(self.view, "Error", f"Failed to open Add Plane dialog:\n{e}")
 
+    # ------------------------------------------------------------
+    def open_edit_plane(self, plane):
+        """פותח חלון עריכה של מטוס קיים"""
+        try:
+            dialog = PlaneFormDialog(self, mode="edit", plane=plane)
+            if dialog.exec():
+                self.load_planes()  # רענון לאחר עדכון
+        except Exception as e:
+            QMessageBox.critical(self.view, "Error", f"Failed to open Edit Plane dialog:\n{e}")
+
+    # ------------------------------------------------------------
     def get_plane_by_id(self, plane_id: int):
-        """מאפשר ל־View לבקש מטוס ספציפי"""
-        return PlaneEntity.get_by_id(plane_id)
-
-    # ------------------- CREATE -------------------
-    def add_plane(self, name, year, made_by, picture, seats1, seats2, seats3):
-        """Add a new plane."""
+        """מביא מטוס ספציפי מהשרת לרענון"""
         try:
-            new_plane = PlaneEntity(
-                PlaneId=0,
-                Name=name,
-                Year=year,
-                MadeBy=made_by,
-                Picture=picture,
-                NumOfSeats1=seats1,
-                NumOfSeats2=seats2,
-                NumOfSeats3=seats3,
-            )
-            if new_plane.create():
-                self.load_planes()
-            else:
-                self.view.show_error("Failed to add new plane.")
-        except Exception as e:
-            self.view.show_error(f"Error adding plane: {e}")
-
-    # ------------------- UPDATE -------------------
-    def update_plane(
-        self, plane_id, name, year, made_by, picture, seats1, seats2, seats3
-    ):
-        """Update an existing plane."""
-        plane = PlaneEntity(
-            PlaneId=plane_id,
-            Name=name,
-            Year=year,
-            MadeBy=made_by,
-            Picture=picture,
-            NumOfSeats1=seats1,
-            NumOfSeats2=seats2,
-            NumOfSeats3=seats3,
-        )
-        try:
-            if plane.update():
-                updated_plane = PlaneEntity.get_by_id(plane_id)
-                if updated_plane:
-                    # רענון הרשימה
-                    self.load_planes()
-                    if (
-                        hasattr(self.view, "active_details_dialog")
-                        and self.view.active_details_dialog
-                    ):
-                        self.view.active_details_dialog.refresh_data(updated_plane)
-            else:
-                self.view.show_error(f"Failed to update plane {plane_id}.")
-        except Exception as e:
-            self.view.show_error(f"Error updating plane: {e}")
-
-    # ------------------- DELETE -------------------
-    def delete_plane(self, plane_id):
-        """Delete a plane by ID."""
-        plane = PlaneEntity.get_by_id(plane_id)
-        if not plane:
-            self.view.show_error(f"Plane ID {plane_id} not found.")
-            return
-
-        try:
-            if plane.delete():
-                print(f"✅ Plane {plane_id} deleted successfully.")
-                self.load_planes()
-            else:
-                self.view.show_error(f"Failed to delete plane {plane_id}.")
-        except Exception as e:
-            self.view.show_error(f"Error deleting plane: {e}")
+            return PlaneEntity.get_by_id(plane_id)
+        except Exception:
+            return None

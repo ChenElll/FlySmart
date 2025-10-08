@@ -4,6 +4,13 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from frontend.view.plane_view import PlaneView
 from frontend.presenter.plane_presenter import PlanePresenter
 
+# זמנית, בתחילת main.py
+from frontend.model.plane_entity import PlaneEntity
+import inspect
+print("PlaneEntity loaded from:", inspect.getfile(PlaneEntity))
+print("create type:", type(PlaneEntity.create))
+
+
 # --- טיפול כולל בשגיאות כדי למנוע סגירה פתאומית ---
 def _exception_hook(exc_type, exc_value, exc_tb):
     tb = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))

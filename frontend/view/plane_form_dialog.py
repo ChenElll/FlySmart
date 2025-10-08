@@ -1,302 +1,251 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QMessageBox, QFrame, QSpacerItem, QSizePolicy
+    QPushButton, QMessageBox, QSizePolicy
 )
-from PySide6.QtCore import Qt, QTimer, QSize
-from PySide6.QtGui import QPixmap, QIntValidator, QColor, QLinearGradient, QPalette, QBrush
+from PySide6.QtCore import Qt, QSize
+from PySide6.QtGui import QPixmap, QIcon, QIntValidator
 import requests
+import datetime
 
 
 class PlaneFormDialog(QDialog):
-    """חלון עריכה/הוספה של מטוס — כולל מחיקה וסגירת חלונות"""
+    """חלון עריכה/הוספה של מטוס — כולל ולידציה, מחיקה ותצוגת תמונה"""
     def __init__(self, presenter, mode="add", plane=None):
         super().__init__()
         self.presenter = presenter
         self.mode = mode
         self.plane = plane
 
-        self.setWindowTitle("✈ Edit Plane" if mode == "edit" else "➕ Add New Plane")
-        self.setModal(True)
-        self.setFixedSize(520, 720)
+        self.setWindowTitle("✈ Edit Plane" if mode == "edit" else "✈ Add Plane")
+        self.setWindowIcon(QIcon("frontend/assets/icons/airplane.svg"))
+        self.setFixedWidth(520)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #F7FBFD;
+                border-radius: 12px;
+            }
+            QLabel {
+                color: #1A2C3A;
+                font-size: 14px;
+            }
+            QLineEdit {
+                border: 1px solid #C3D8E3;
+                border-radius: 8px;
+                padding: 6px 8px;
+                font-size: 14px;
+                background: white;
+            }
+            QPushButton {
+                font-weight: 600;
+                border-radius: 10px;
+                padding: 8px 18px;
+            }
+            QPushButton#save {
+                background-color: #7AB9E0;
+                color: white;
+            }
+            QPushButton#save:hover {
+                background-color: #67A8D4;
+            }
+            QPushButton#delete {
+                background-color: #F3C4C4;
+                color: #333;
+            }
+            QPushButton#delete:hover {
+                background-color: #E89C9C;
+            }
+            QPushButton#cancel {
+                background-color: #E2EFF4;
+                color: #333;
+            }
+            QPushButton#cancel:hover {
+                background-color: #D0E4EB;
+            }
+        """)
+
         self._build_ui()
+        if self.mode == "edit" and self.plane:
+            self._populate_fields()
 
     # ------------------------------------------------------------
     def _build_ui(self):
-        # רקע עם גרדיאנט תכלת
-        palette = QPalette()
-        grad = QLinearGradient(0, 0, 0, self.height())
-        grad.setColorAt(0, QColor("#F8FBFD"))
-        grad.setColorAt(1, QColor("#EAF4F9"))
-        palette.setBrush(QPalette.Window, QBrush(grad))
-        self.setAutoFillBackground(True)
-        self.setPalette(palette)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
 
-        # כרטיס לבן
-        container = QFrame()
-        container.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-radius: 18px;
-                border: 1px solid #DCE8EE;
-            }
-        """)
-
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(30, 20, 30, 20)
-        outer.addWidget(container, alignment=Qt.AlignCenter)
-
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(40, 30, 40, 30)
-        layout.setSpacing(14)
-
-        # --- כותרת ---
-        title = QLabel("✈ Edit Plane" if self.mode == "edit" else "➕ Add New Plane")
+        # כותרת עליונה
+        title = QLabel("✈ Edit Plane" if self.mode == "edit" else "✈ Add Plane")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("""
-            QLabel {
-                font-size: 22px;
-                font-weight: 700;
-                color: #2A5268;
-                margin-bottom: 10px;
-            }
-        """)
+        title.setStyleSheet("font-size: 20px; font-weight: 700; color: #1A2C3A;")
         layout.addWidget(title)
 
-        # קו מפריד
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setStyleSheet("color: #D5E7EE;")
-        layout.addWidget(line)
+        # שדות טופס
+        self.inputs = {}
+        fields = [
+            ("Name", "Name:"),
+            ("Year", "Year:"),
+            ("MadeBy", "MadeBy:"),
+            ("Picture", "Image URL (optional):"),
+            ("NumOfSeats1", "Seats Class 1:"),
+            ("NumOfSeats2", "Seats Class 2:"),
+            ("NumOfSeats3", "Seats Class 3:")
+        ]
 
-        # --- שדות קלט ---
-        self.name_input = self._add_field(layout, "✈ Name:")
-        self.year_input = self._add_field(layout, "Year:", QIntValidator(1900, 2100))
-        self.made_by_input = self._add_field(layout, "Manufacturer:")
-        self.picture_input = self._add_field(layout, "Image URL (optional):")
-        self.seats1_input = self._add_field(layout, "Seats Class 1:", QIntValidator(0, 999))
-        self.seats2_input = self._add_field(layout, "Seats Class 2:", QIntValidator(0, 999))
-        self.seats3_input = self._add_field(layout, "Seats Class 3:", QIntValidator(0, 999))
+        for key, label_text in fields:
+            row = QHBoxLayout()
+            row.setSpacing(10)
 
-        # --- תצוגת תמונה ---
+            label = QLabel(label_text)
+            label.setStyleSheet("font-weight: 600; min-width: 140px;")
+            label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+            field = QLineEdit()
+            field.setPlaceholderText(f"Enter {key}")
+            field.setFixedHeight(32)
+            field.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+            if "Seats" in key or key == "Year":
+                field.setValidator(QIntValidator(0, 9999))
+
+            row.addWidget(label)
+            row.addWidget(field)
+            layout.addLayout(row)
+            self.inputs[key] = field
+
+        # תצוגת תמונה
         self.preview_label = QLabel("No image preview")
         self.preview_label.setAlignment(Qt.AlignCenter)
         self.preview_label.setFixedSize(400, 220)
         self.preview_label.setStyleSheet("""
-            QLabel {
-                border: 2px dashed #C6E2EE;
-                border-radius: 12px;
-                background-color: #F8FBFD;
-                color: #7AA4B7;
-                font-size: 13px;
-            }
+            border: 2px dashed #C3D8E3;
+            border-radius: 12px;
+            color: #A1B6C4;
+            background-color: #FDFEFE;
         """)
         layout.addWidget(self.preview_label, alignment=Qt.AlignCenter)
 
-        # טעינה אוטומטית של preview אחרי השהייה
-        self._url_timer = QTimer()
-        self._url_timer.setSingleShot(True)
-        self._url_timer.timeout.connect(self._load_preview_image)
-        self.picture_input.textChanged.connect(lambda: self._url_timer.start(500))
+        # שינוי אוטומטי של התמונה כאשר URL משתנה
+        self.inputs["Picture"].textChanged.connect(self._update_preview)
 
-        if self.mode == "edit" and self.plane:
-            self._load_plane_data()
-            if self.plane.Picture:
-                self._display_image(self.plane.Picture)
-
-        layout.addItem(QSpacerItem(10, 15, QSizePolicy.Minimum, QSizePolicy.Expanding))
-        layout.addSpacing(10)
-
-        # --- כפתורים ---
+        # כפתורים
         btn_box = QHBoxLayout()
-        btn_box.setSpacing(14)
+        btn_box.setSpacing(10)
 
         save_btn = QPushButton("💾 Save")
-        save_btn.setObjectName("saveBtn")
-        save_btn.clicked.connect(self._on_save)
+        save_btn.setObjectName("save")
+        save_btn.clicked.connect(self._save_plane)
 
-        delete_btn = QPushButton("🗑 Delete")
-        delete_btn.setObjectName("deleteBtn")
-        delete_btn.clicked.connect(self._on_delete)
+        delete_btn = QPushButton("🗑️ Delete")
+        delete_btn.setObjectName("delete")
+        delete_btn.clicked.connect(self._delete_plane)
 
         cancel_btn = QPushButton("✖ Cancel")
-        cancel_btn.setObjectName("cancelBtn")
+        cancel_btn.setObjectName("cancel")
         cancel_btn.clicked.connect(self.reject)
 
-        btn_box.addStretch()
         btn_box.addWidget(save_btn)
         if self.mode == "edit":
             btn_box.addWidget(delete_btn)
         btn_box.addWidget(cancel_btn)
         layout.addLayout(btn_box)
 
-        # --- עיצוב ---
-        self.setStyleSheet("""
-            QLineEdit {
-                border: none;
-                border-bottom: 1px solid #D5E7EE;
-                padding: 6px 4px;
-                background-color: #FAFCFD;
-                font-size: 14px;
-            }
-            QLineEdit:focus {
-                border-bottom: 1px solid #4BA3C7;
-                background-color: #FFFFFF;
-            }
-            QPushButton {
-                min-width: 150px;
-                min-height: 36px;
-                border-radius: 10px;
-                font-weight: 600;
-                padding: 8px 18px;
-                font-size: 14px;
-            }
-            QPushButton#saveBtn {
-                background-color: #4BA3C7;
-                color: white;
-            }
-            QPushButton#saveBtn:hover { background-color: #3A94B8; }
-            QPushButton#cancelBtn {
-                background-color: #E8F4F8;
-                color: #4BA3C7;
-            }
-            QPushButton#cancelBtn:hover { background-color: #D7EEF3; }
-            QPushButton#deleteBtn {
-                background-color: #FAD4D4;
-                color: #A60000;
-            }
-            QPushButton#deleteBtn:hover {
-                background-color: #F8BABA;
-            }
-        """)
+    # ------------------------------------------------------------
+    def _collect_form_data(self):
+        """אוספת נתונים מהשדות לטובת שמירה/עדכון"""
+        return {
+            "Name": self.inputs["Name"].text().strip(),
+            "Year": int(self.inputs["Year"].text().strip() or 0),
+            "MadeBy": self.inputs["MadeBy"].text().strip(),
+            "Picture": self.inputs["Picture"].text().strip(),
+            "NumOfSeats1": int(self.inputs["NumOfSeats1"].text().strip() or 0),
+            "NumOfSeats2": int(self.inputs["NumOfSeats2"].text().strip() or 0),
+            "NumOfSeats3": int(self.inputs["NumOfSeats3"].text().strip() or 0),
+        }
 
     # ------------------------------------------------------------
-    def _add_field(self, layout, label_text, validator=None):
-        lbl = QLabel(label_text)
-        lbl.setStyleSheet("font-weight: 500; color: #244F63;")
-        field = QLineEdit()
-        if validator:
-            field.setValidator(validator)
-        layout.addWidget(lbl)
-        layout.addWidget(field)
-        return field
+    def _validate_form(self, data):
+        """בודקת שהנתונים שהוזנו תקינים"""
+        current_year = datetime.datetime.now().year
+
+        if not data["Name"]:
+            return False, "Please enter a plane name."
+        if data["Year"] <= 0 or data["Year"] > current_year + 1:
+            return False, f"Year must be between 1 and {current_year + 1}."
+        if not data["MadeBy"]:
+            return False, "Please enter manufacturer name."
+        if all(v == 0 for v in (data["NumOfSeats1"], data["NumOfSeats2"], data["NumOfSeats3"])):
+            return False, "Please enter at least one seat class count."
+        return True, ""
 
     # ------------------------------------------------------------
-    def _load_preview_image(self):
-        """טעינת תצוגת תמונה (ללא threads)"""
-        url = self.picture_input.text().strip()
+    def _populate_fields(self):
+        """ממלא את השדות בנתונים של המטוס הנבחר"""
+        for key in self.inputs:
+            value = getattr(self.plane, key, "")
+            self.inputs[key].setText(str(value) if value is not None else "")
+        self._update_preview()
+
+    # ------------------------------------------------------------
+    def _update_preview(self):
+        """טוען תמונה מתוקנת ללא גלישה"""
+        url = self.inputs["Picture"].text().strip()
         if not url:
+            self.preview_label.setText("No image preview")
             self.preview_label.setPixmap(QPixmap())
-            self.preview_label.setText("No Image")
             return
 
         try:
-            r = requests.get(url, timeout=3)
-            if r.status_code == 200:
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
                 pix = QPixmap()
-                pix.loadFromData(r.content)
-                if not pix.isNull():
-                    scaled = pix.scaled(self.preview_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                    self.preview_label.setPixmap(scaled)
-                    self.preview_label.setText("")
-                    return
-        except Exception:
-            pass
-
-        self.preview_label.setPixmap(QPixmap())
-        self.preview_label.setText("❌ Failed to load image")
-
-    def _display_image(self, url):
-        """טעינת תמונה מתוך הנתון הקיים של המטוס"""
-        try:
-            r = requests.get(url, timeout=3)
-            if r.status_code == 200:
-                pix = QPixmap()
-                pix.loadFromData(r.content)
-                scaled = pix.scaled(self.preview_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                pix.loadFromData(response.content)
+                scaled = pix.scaled(
+                    self.preview_label.size(),
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation
+                )
                 self.preview_label.setPixmap(scaled)
+                self.preview_label.setText("")
+            else:
+                self.preview_label.setText("Failed to load image")
         except Exception:
-            self.preview_label.setText("❌ Failed to load image")
+            self.preview_label.setText("Invalid URL or connection error")
 
     # ------------------------------------------------------------
-    def _load_plane_data(self):
-        """ממלא את נתוני המטוס הקיים בשדות"""
-        self.name_input.setText(self.plane.Name)
-        self.year_input.setText(str(self.plane.Year))
-        self.made_by_input.setText(self.plane.MadeBy)
-        self.picture_input.setText(self.plane.Picture or "")
-        self.seats1_input.setText(str(self.plane.NumOfSeats1))
-        self.seats2_input.setText(str(self.plane.NumOfSeats2))
-        self.seats3_input.setText(str(self.plane.NumOfSeats3))
-
-    # ------------------------------------------------------------
-    def _on_save(self):
-        """שמירת הנתונים (הוספה/עדכון)"""
-        name = self.name_input.text().strip()
-        year = self.year_input.text().strip()
-        made_by = self.made_by_input.text().strip()
-        picture = self.picture_input.text().strip() or None
-        s1 = self.seats1_input.text().strip() or "0"
-        s2 = self.seats2_input.text().strip() or "0"
-        s3 = self.seats3_input.text().strip() or "0"
-
-        if not name or not year or not made_by:
-            QMessageBox.warning(self, "Missing Data", "Please fill all required fields.")
-            return
-
+    def _save_plane(self):
+        """שומר שינויים במטוס בצורה נקייה ועם בדיקה מוקדמת"""
         try:
-            year = int(year)
-            s1, s2, s3 = int(s1), int(s2), int(s3)
-        except ValueError:
-            QMessageBox.warning(self, "Invalid Input", "Numeric fields must contain numbers.")
-            return
+            data = self._collect_form_data()
+            valid, err = self._validate_form(data)
+            if not valid:
+                QMessageBox.warning(self, "Invalid Data", err)
+                return
 
-        if self.mode == "edit" and self.plane:
-            self.presenter.update_plane(self.plane.PlaneId, name, year, made_by, picture, s1, s2, s3)
-        else:
-            self.presenter.add_plane(name, year, made_by, picture, s1, s2, s3)
-
-        self.accept()
+            success, msg = self.presenter.save_plane(self.mode, data, self.plane)
+            if success:
+                if hasattr(self.presenter, "load_planes"):
+                    self.presenter.load_planes()
+                self.accept()
+            elif msg:
+                QMessageBox.critical(self, "Error", msg)
+        except Exception as e:
+            QMessageBox.critical(self, "Unexpected Error", str(e))
 
     # ------------------------------------------------------------
-    def _on_delete(self):
-        """מאשר ומוחק את המטוס הנוכחי וסוגר את כל החלונות הקטנים"""
+    def _delete_plane(self):
+        """מאשר ומבצע מחיקת מטוס"""
         if not self.plane:
+            QMessageBox.warning(self, "Error", "No plane to delete.")
             return
 
         confirm = QMessageBox.question(
-            self,
-            "Confirm Delete",
+            self, "Confirm Delete",
             f"Are you sure you want to delete '{self.plane.Name}'?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No
         )
-
         if confirm == QMessageBox.Yes:
-            try:
-                # מוחק מה־DB
-                self.presenter.delete_plane(self.plane.PlaneId)
-
-                # ✨ סגירת חלון פרטים אם פתוח
-                if hasattr(self.presenter.view, "active_details_dialog") and self.presenter.view.active_details_dialog:
-                    try:
-                        self.presenter.view.active_details_dialog.close()
-                        self.presenter.view.active_details_dialog = None
-                    except Exception:
-                        pass
-
-                # ✨ רענון רשימת המטוסים הראשית
-                self.presenter.load_planes()
-
-                # ✨ סגירת חלון העריכה עצמו
+            success, msg = self.presenter.delete_plane(self.plane.PlaneId)
+            if success:
                 self.accept()
-
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to delete plane: {e}")
-
-    # ------------------------------------------------------------
-    def keyPressEvent(self, event):
-        """מאפשר שמירה ע"י לחיצה על Enter"""
-        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
-            self._on_save()
-        else:
-            super().keyPressEvent(event)
+            if msg:
+                QMessageBox.information(self, "Result", msg)

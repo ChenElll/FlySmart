@@ -7,7 +7,8 @@ from .image_loader import ImageLoader
 
 
 class PlaneCard(QFrame):
-    clicked = Signal(object)  # שידור לחיצה עם אובייקט המטוס
+    """כרטיס תצוגת מטוס עם תמונה, פרטים ואפקטים"""
+    clicked = Signal(object)  # נשלח את אובייקט המטוס בעת לחיצה
 
     def __init__(self, plane, cache_manager, presenter):
         super().__init__()
@@ -23,7 +24,7 @@ class PlaneCard(QFrame):
 
     # ------------------------------------------------------------
     def _build_ui(self):
-        # עיצוב בסיסי
+        """בונה את מבנה הכרטיס"""
         self.setStyleSheet("""
             QFrame {
                 background-color: white;
@@ -45,7 +46,7 @@ class PlaneCard(QFrame):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
 
-        # צל קל
+        # צל קל ועדין
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(30)
         shadow.setOffset(0, 5)
@@ -56,7 +57,7 @@ class PlaneCard(QFrame):
         self.img = QLabel()
         self.img.setFixedSize(QSize(260, 150))
         self.img.setAlignment(Qt.AlignCenter)
-        self.img.setPixmap(QPixmap("frontend/assets/icons/airplane.svg"))
+        self.img.setScaledContents(False)
         layout.addWidget(self.img, alignment=Qt.AlignCenter)
 
         # שם המטוס
@@ -74,38 +75,53 @@ class PlaneCard(QFrame):
 
     # ------------------------------------------------------------
     def _load_image(self):
-        """טעינת תמונה פשוטה (ללא thread)"""
+        """טעינת תמונה מה־cache או מהאינטרנט"""
         if not self.plane.Picture:
+            # תמונת ברירת מחדל אם אין URL
+            self._fade_in_image(QPixmap("frontend/assets/icons/airplane.svg"))
             return
 
-        # אם התמונה קיימת כבר ב־cache → נשתמש בה מיד
         if self.plane.Picture in self.cache.cache:
             pix = self.cache.cache[self.plane.Picture]
-            if not pix.isNull():
+            if pix and not pix.isNull():
                 self._fade_in_image(pix)
-            return
+                return
 
-        # אחרת נטען אותה
         loader = ImageLoader(self.plane.Picture)
         loader.finished.connect(lambda url, pix: self._update_image(url, pix))
         loader.load()
 
     def _update_image(self, url, pix):
-        """מציג את התמונה אם קיימת"""
-        if not pix or pix.isNull() or self._destroyed:
+        """מתעדכן לאחר טעינת תמונה מהאינטרנט"""
+        if self._destroyed:
+            return
+
+        if not pix or pix.isNull():
+            # fallback אם נכשל
+            self._fade_in_image(QPixmap("frontend/assets/icons/airplane.svg"))
             return
 
         self.cache.cache[url] = pix
         self._fade_in_image(pix)
 
+    # ------------------------------------------------------------
     def _fade_in_image(self, pix):
-        """אפקט טעינה רך"""
+        """מציג תמונה בהדרגה (fade-in), כולל הגנה אם pix חסר"""
         if self._destroyed:
             return
 
-        self.img.setPixmap(
-            pix.scaled(self.img.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        # הגנה: אם None → fallback לתמונת ברירת מחדל
+        if pix is None or not hasattr(pix, "scaled") or pix.isNull():
+            pix = QPixmap("frontend/assets/icons/airplane.svg")
+
+        scaled = pix.scaled(
+            self.img.size(),
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation
         )
+        self.img.setPixmap(scaled)
+
+        # אפקט שקיפות
         opacity = QGraphicsOpacityEffect()
         self.img.setGraphicsEffect(opacity)
         anim = QPropertyAnimation(opacity, b"opacity")
@@ -118,23 +134,19 @@ class PlaneCard(QFrame):
     # ------------------------------------------------------------
     def enterEvent(self, event):
         """אפקט hover עדין"""
-        anim = QPropertyAnimation(self, b"geometry")
-        anim.setDuration(180)
-        anim.setStartValue(self.geometry())
-        g = self.geometry()
-        anim.setEndValue(g.adjusted(-3, -3, 3, 3))
-        anim.start()
-        self._hover_anim = anim
+        eff = self.graphicsEffect()
+        if isinstance(eff, QGraphicsDropShadowEffect):
+            eff.setBlurRadius(35)
+            eff.setOffset(0, 8)
+            eff.setColor(QColor(0, 0, 0, 35))
         super().enterEvent(event)
 
     def leaveEvent(self, event):
-        anim = QPropertyAnimation(self, b"geometry")
-        anim.setDuration(180)
-        g = self.geometry()
-        anim.setStartValue(g)
-        anim.setEndValue(g.adjusted(3, 3, -3, -3))
-        anim.start()
-        self._hover_anim = anim
+        eff = self.graphicsEffect()
+        if isinstance(eff, QGraphicsDropShadowEffect):
+            eff.setBlurRadius(30)
+            eff.setOffset(0, 5)
+            eff.setColor(QColor(0, 0, 0, 25))
         super().leaveEvent(event)
 
     def mousePressEvent(self, event):

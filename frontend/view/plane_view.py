@@ -7,17 +7,15 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QComboBox,
     QScrollArea,
-    QFrame,
-    QGridLayout,
     QMessageBox,
+    QGridLayout,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QLinearGradient, QPalette, QColor, QBrush
 
 from .plane_card import PlaneCard
 from .image_loader import ImageLoader
 from .plane_details_dialog import PlaneDetailsDialog
-from PySide6.QtCore import QTimer
 
 
 # --------------------------
@@ -25,7 +23,7 @@ from PySide6.QtCore import QTimer
 # --------------------------
 class SimpleCache:
     def __init__(self):
-        self.cache = {}  # מפת כתובת → QPixmap
+        self.cache = {}  # כתובת → QPixmap
 
 
 class PlaneView(QWidget):
@@ -34,14 +32,14 @@ class PlaneView(QWidget):
         self.presenter = presenter
         self.presenter.view = self
 
-        # ניהול תמונות (cache בלבד)
+        # ניהול תמונות (cache)
         self.cache_manager = SimpleCache()
 
         # מאפייני חלון
         self.setWindowTitle("FlySmart | Plane Manager")
         self.resize(1200, 780)
 
-        # === רקע תכלת-כחלחל ===
+        # רקע תכלת בהיר מדורג
         palette = QPalette()
         grad = QLinearGradient(0, 0, 0, self.height())
         grad.setColorAt(0, QColor("#FFFFFF"))
@@ -50,9 +48,8 @@ class PlaneView(QWidget):
         self.setAutoFillBackground(True)
         self.setPalette(palette)
 
-        # === עיצוב כללי ===
-        self.setStyleSheet(
-            """
+        # עיצוב כללי
+        self.setStyleSheet("""
             QWidget {
                 font-family: 'Segoe UI';
                 color: #1A1F1D;
@@ -100,9 +97,6 @@ class PlaneView(QWidget):
                 height: 10px;
                 margin-right: 6px;
             }
-            QComboBox::down-arrow:on {
-                image: url(frontend/assets/icons/arrow_down_pressed.svg);
-            }
             QPushButton#clearBtn {
                 background-color: #E8F4F8;
                 color: #4BA3C7;
@@ -118,14 +112,13 @@ class PlaneView(QWidget):
                 color: #3C4E56;
                 padding: 8px 14px;
             }
-        """
-        )
+        """)
 
         self.init_ui()
         self.presenter.load_planes()
 
     # ============================================================
-    # מבנה המסך
+    # בניית המסך הראשי
     # ============================================================
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -169,7 +162,7 @@ class PlaneView(QWidget):
         filters.addWidget(clear_btn)
         layout.addLayout(filters)
 
-        # --- Scroll + גריד של כרטיסים ---
+        # --- גריד הכרטיסים בתוך Scroll ---
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         container = QWidget()
@@ -184,6 +177,11 @@ class PlaneView(QWidget):
         self.status_label = QLabel("Status: ⏳ Loading...")
         self.status_label.setObjectName("status")
         layout.addWidget(self.status_label)
+
+    # ------------------------------------------------------------
+    def show_status(self, text):
+        """עדכון טקסט הסטטוס התחתון"""
+        self.status_label.setText(f"Status: {text}")
 
     # ============================================================
     # הצגת רשימת מטוסים
@@ -208,7 +206,7 @@ class PlaneView(QWidget):
         self.year_combo.blockSignals(False)
 
         self.apply_filters()
-        self.status_label.setText(f"Status: ✅ Loaded {len(planes)} planes")
+        self.show_status(f"✅ Loaded {len(planes)} planes")
 
     # ============================================================
     # סינון
@@ -223,9 +221,7 @@ class PlaneView(QWidget):
 
         filtered = []
         for p in self.planes:
-            match_name = (
-                search_text in p.Name.lower() or search_text in p.MadeBy.lower()
-            )
+            match_name = (search_text in p.Name.lower() or search_text in p.MadeBy.lower())
             match_maker = maker == "All Manufacturers" or p.MadeBy == maker
             match_year = year == "All Years" or str(p.Year) == year
             if match_name and match_maker and match_year:
@@ -259,9 +255,7 @@ class PlaneView(QWidget):
                 return
 
             batch_size = 6
-            planes_to_load = self._pending_planes[
-                self._current_index : self._current_index + batch_size
-            ]
+            planes_to_load = self._pending_planes[self._current_index:self._current_index + batch_size]
             if not planes_to_load:
                 return
 
@@ -272,9 +266,8 @@ class PlaneView(QWidget):
                 self.cards_layout.addWidget(card, row, col)
                 self._current_index += 1
 
-            # אם נשארו עוד — נטען את הבאים עוד רגע
             if self._current_index < len(self._pending_planes):
-                QTimer.singleShot(150, load_next_batch)  # ⏱️ טעינה הדרגתית כל 150ms
+                QTimer.singleShot(150, load_next_batch)
 
         load_next_batch()
 
@@ -282,21 +275,48 @@ class PlaneView(QWidget):
     # פתיחת חלון פרטים
     # ============================================================
     def open_plane_details(self, plane):
-        """פותח חלון פרטים של מטוס ושומר עליו הפניה כדי שנוכל לסגור או לרענן מאוחר יותר"""
-        # אם כבר פתוח חלון פרטים אחר → נסגור אותו לפני פתיחה חדשה
         if hasattr(self, "active_details_dialog") and self.active_details_dialog:
             try:
                 self.active_details_dialog.close()
             except Exception:
                 pass
 
-        # פתיחת חלון פרטים חדש
         dialog = PlaneDetailsDialog(self, plane, self.cache_manager, self.presenter)
-        self.active_details_dialog = dialog  # ✨ שמירת הפניה
+        self.active_details_dialog = dialog
         dialog.exec()
-
-        # לאחר סגירה — ניקוי ההפניה
         self.active_details_dialog = None
+
+    # ============================================================
+    # פונקציות עזר לעדכון כרטיסים
+    # ============================================================
+    def add_plane_card(self, plane):
+        """מוסיפה כרטיס חדש של מטוס"""
+        card = PlaneCard(plane, self.cache_manager, self.presenter)
+        card.clicked.connect(lambda p=plane: self.open_plane_details(p))
+        total = self.cards_layout.count()
+        row, col = divmod(total, 3)
+        self.cards_layout.addWidget(card, row, col)
+        self.show_status(f"✅ Plane '{plane.Name}' added.")
+
+    def refresh_plane_card(self, updated_plane):
+        """מרעננת כרטיס לאחר עריכה"""
+        for i in range(self.cards_layout.count()):
+            w = self.cards_layout.itemAt(i).widget()
+            if hasattr(w, "plane") and w.plane.PlaneId == updated_plane.PlaneId:
+                w.plane = updated_plane
+                w._fade_in_image(None)
+                w.repaint()
+                break
+        self.show_status(f"✏️ Plane '{updated_plane.Name}' updated.")
+
+    def remove_plane_card(self, plane_id):
+        """מסירה כרטיס לאחר מחיקה"""
+        for i in reversed(range(self.cards_layout.count())):
+            w = self.cards_layout.itemAt(i).widget()
+            if hasattr(w, "plane") and w.plane.PlaneId == plane_id:
+                w.deleteLater()
+                break
+        self.show_status("🗑️ Plane deleted successfully.")
 
     def show_error(self, msg):
         QMessageBox.critical(self, "Error", msg)
