@@ -18,6 +18,8 @@ from PySide6.QtCharts import (
 )
 from PySide6.QtCore import Qt, QEvent, QPropertyAnimation, QRect
 from PySide6.QtGui import QFont, QPainter, QColor
+from PySide6.QtWidgets import QLabel
+
 
 
 class PlaneStatsDialog(QDialog):
@@ -142,6 +144,51 @@ class PlaneStatsDialog(QDialog):
         pie_series = QPieSeries()
         for manufacturer, count in manufacturer_count.items():
             pie_series.append(manufacturer, count)
+            slice_ = pie_series.slices()[-1]
+            slice_.setLabelVisible(True)
+            slice_.setLabel(f"{manufacturer} ({count})")
+
+        # --- תגובה בהעברת עכבר + הדגשה של הפרוסה --- #
+        def on_hovered(hovered, slice_):
+            total = sum(manufacturer_count.values())
+            percentage = (slice_.value() / total) * 100
+
+            # אם עובר עכבר על הפרוסה → תבלוט ותעדכן טקסט
+            if hovered:
+                slice_.setExploded(True)
+                slice_.setLabelFont(QFont("Segoe UI", 10, QFont.Bold))
+                self.summary_label.setText(
+                    f"{slice_.label()}: {slice_.value()} planes ({percentage:.1f}%)"
+                )
+            else:
+                slice_.setExploded(False)
+                slice_.setLabelFont(QFont("Segoe UI", 9))
+                # שחזור הטקסט הכללי כשהעכבר עוזב
+                total = len(planes)
+                num_manufacturers = len(manufacturer_count)
+                num_years = len({getattr(p, 'Year', 'Unknown') for p in planes})
+                self.summary_label.setText(
+                    f"Total planes: {total} | Manufacturers: {num_manufacturers} | Years: {num_years}"
+                )
+
+        # חיבור לכל הפרוסות
+        for s in pie_series.slices():
+            s.hovered.connect(lambda hovered, slice_=s: on_hovered(hovered, slice_))
+
+
+
+        # מאפשר הצגת פרטים בלחיצה על פרוסה
+        def on_slice_clicked(slice_):
+            total = sum(manufacturer_count.values())
+            percentage = (slice_.value() / total) * 100
+            self.summary_label.setText(
+                f"{slice_.label()}: {slice_.value()} planes ({percentage:.1f}%)"
+            )
+
+        pie_series.slices()[0].clicked.connect(lambda: on_slice_clicked(pie_series.slices()[0]))  # נחבר אחר כך בלולאה
+        for s in pie_series.slices():
+            s.clicked.connect(lambda checked=False, slice_=s: on_slice_clicked(slice_))
+
 
         chart1 = self.chart_views[0].chart()
         chart1.removeAllSeries()
@@ -197,6 +244,66 @@ class PlaneStatsDialog(QDialog):
 
         chart2.legend().setAlignment(Qt.AlignBottom)
         chart2.setAnimationOptions(QChart.SeriesAnimations)
+
+        # תווית קטנה שמוצגת מעל העמודה
+        hover_label = QLabel(self.chart_views[1])
+        hover_label.setStyleSheet("""
+            background-color: #ffffff;
+            color: #2F3A4A;
+            border: 1px solid #C0D6E4;
+            border-radius: 5px;
+            padding: 3px 6px;
+            font-size: 10pt;
+        """)
+        hover_label.hide()
+
+            # --- תגובה בהעברת עכבר לגרף העמודות --- #
+        hover_label = QLabel(self.chart_views[1])
+        hover_label.setStyleSheet("""
+            background-color: #ffffff;
+            color: #2F3A4A;
+            border: 1px solid #C0D6E4;
+            border-radius: 5px;
+            padding: 3px 6px;
+            font-size: 10pt;
+        """)
+        hover_label.hide()
+
+        def on_bar_hovered(status, index):
+            if 0 <= index < len(recent_years):
+                year = recent_years[index]
+                count = bar_set.at(index)
+
+                # המרת ערכים לקואורדינטות מסך
+                plot_area = chart2.plotArea()
+                x_axis = chart2.axes(Qt.Horizontal)[0]
+                y_axis = chart2.axes(Qt.Vertical)[0]
+
+                # חישוב מיקום יחסי לפי הציר X
+                x_min = x_axis.min()
+                x_max = x_axis.max() if hasattr(x_axis, "max") else len(recent_years) - 1
+                step = plot_area.width() / max(1, len(recent_years))
+                x = plot_area.left() + (index + 0.5) * step
+
+                # חישוב גובה העמודה לפי ערך Y
+                y_val = count
+                y_min, y_max = y_axis.min(), y_axis.max()
+                ratio = (y_val - y_min) / max(1, y_max - y_min)
+                y = plot_area.bottom() - (ratio * plot_area.height())
+
+                if status:
+                    bar_set.setColor(QColor("#2F7FA1"))
+                    hover_label.setText(f"{year}: {count} planes")
+                    hover_label.adjustSize()
+                    hover_label.move(int(x - hover_label.width() / 2), int(y - 40))
+                    hover_label.show()
+                    hover_label.raise_()
+                else:
+                    bar_set.setColor(QColor("#4BA3C7"))
+                    hover_label.hide()
+
+        bar_set.hovered.connect(on_bar_hovered)
+
 
         # ======== סיכום ========
         total = len(planes)
