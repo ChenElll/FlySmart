@@ -8,16 +8,24 @@ import requests
 
 
 class PlaneDetailsDialog(QDialog):
-    """Dialog window showing detailed information about a plane — view only, with an Edit button."""
+    """
+    Dialog window that displays detailed information about a specific plane.
+    It is view-only but includes an Edit button that allows users to modify plane data.
+    """
+
     def __init__(self, parent, plane, cache_manager, presenter):
         super().__init__(parent)
         self.plane = plane
         self.cache = cache_manager
         self.presenter = presenter
+        self.fields = {}  # will store QLabel references for dynamic updates
 
+        # --- Window setup ---
         self.setWindowTitle(f"Plane Details – {plane.Name}")
         self.setWindowIcon(QIcon("frontend/assets/icons/airplane.svg"))
         self.setMinimumWidth(560)
+
+        # --- Styling ---
         self.setStyleSheet("""
             QDialog {
                 background-color: #F7FBFD;
@@ -31,10 +39,6 @@ class PlaneDetailsDialog(QDialog):
                 font-size: 20px;
                 font-weight: 700;
                 color: #1A2C3A;
-            }
-            QLabel#subtitle {
-                font-size: 13px;
-                color: #5A6D78;
             }
             QPushButton {
                 font-weight: 600;
@@ -57,25 +61,25 @@ class PlaneDetailsDialog(QDialog):
 
     # ------------------------------------------------------------
     def _build_ui(self):
-        """Builds the visual layout and populates the dialog with plane details."""
+        """Builds the dialog layout and fills in the plane information."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
 
-        # Header title
+        # --- Header title ---
         title = QLabel(f"✈ {self.plane.Name}")
         title.setObjectName("title")
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
-        # Main container frame for details
+        # --- Details container ---
         frame = QFrame()
         frame.setObjectName("container")
         frame_layout = QVBoxLayout(frame)
         frame_layout.setContentsMargins(25, 25, 25, 25)
         frame_layout.setSpacing(14)
 
-        # Plane image section
+        # --- Plane image ---
         self.img_label = QLabel()
         self.img_label.setFixedSize(420, 220)
         self.img_label.setAlignment(Qt.AlignCenter)
@@ -88,15 +92,23 @@ class PlaneDetailsDialog(QDialog):
         frame_layout.addWidget(self.img_label, alignment=Qt.AlignCenter)
         self._load_image()
 
-        # Textual plane information
+        # --- Plane details ---
         info_texts = [
             ("ID:", str(self.plane.PlaneId)),
             ("Manufacturer:", self.plane.MadeBy),
             ("Year:", str(self.plane.Year)),
-            ("Total Seats:", str(self.plane.NumOfSeats1 + self.plane.NumOfSeats2 + self.plane.NumOfSeats3)),
+            (
+                "Seats by Class:",
+                f"First: {self.plane.NumOfSeats1} | Business: {self.plane.NumOfSeats2} | Economy: {self.plane.NumOfSeats3}"
+            ),
+            (
+                "Total Seats:",
+                str(self.plane.NumOfSeats1 + self.plane.NumOfSeats2 + self.plane.NumOfSeats3)
+            ),
             ("Image URL:", self.plane.Picture or "None"),
         ]
 
+        # Build rows dynamically and store label references
         for label_text, value_text in info_texts:
             row = QHBoxLayout()
             lbl = QLabel(label_text)
@@ -106,10 +118,11 @@ class PlaneDetailsDialog(QDialog):
             row.addWidget(lbl)
             row.addWidget(val)
             frame_layout.addLayout(row)
+            self.fields[label_text] = val  # store reference for later update
 
         layout.addWidget(frame)
 
-        # Edit button
+        # --- Edit button ---
         edit_btn = QPushButton("Edit Plane")
         edit_btn.setObjectName("edit")
         edit_btn.setFixedWidth(180)
@@ -118,7 +131,7 @@ class PlaneDetailsDialog(QDialog):
 
     # ------------------------------------------------------------
     def _load_image(self):
-        """Loads the plane image from a URL or uses a fallback icon."""
+        """Loads the plane image from a URL or uses a fallback icon if unavailable."""
         url = self.plane.Picture
         pix = QPixmap("frontend/assets/icons/airplane.svg")
 
@@ -138,10 +151,10 @@ class PlaneDetailsDialog(QDialog):
 
     # ------------------------------------------------------------
     def _edit_plane(self):
-        """Opens the Edit Plane dialog from within the details view."""
+        """Opens the Edit Plane dialog and refreshes data after editing."""
         try:
             self.presenter.open_edit_plane(self.plane)
-            # Refresh details after editing
+            # Refresh updated data from the backend
             refreshed = self.presenter.get_plane_by_id(self.plane.PlaneId)
             if refreshed:
                 self.plane = refreshed
@@ -149,7 +162,22 @@ class PlaneDetailsDialog(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to open edit dialog:\n{e}")
 
+    # ------------------------------------------------------------
     def _rebuild_after_update(self):
-        """Rebuilds the dialog content after the plane is updated."""
+        """Refreshes all displayed information after the plane is edited."""
+        # Update title
         self.layout().itemAt(0).widget().setText(f"✈ {self.plane.Name}")
+
+        # Update textual fields
+        self.fields["Manufacturer:"].setText(self.plane.MadeBy)
+        self.fields["Year:"].setText(str(self.plane.Year))
+        self.fields["Seats by Class:"].setText(
+            f"First: {self.plane.NumOfSeats1} | Business: {self.plane.NumOfSeats2} | Economy: {self.plane.NumOfSeats3}"
+        )
+        self.fields["Total Seats:"].setText(
+            str(self.plane.NumOfSeats1 + self.plane.NumOfSeats2 + self.plane.NumOfSeats3)
+        )
+        self.fields["Image URL:"].setText(self.plane.Picture or "None")
+
+        # Reload image (in case it changed)
         self._load_image()
