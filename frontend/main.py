@@ -39,6 +39,14 @@ def main():
     # הצגת חלון
     view.show()
 
+    # מציב את החלון הראשי במרכז המסך
+    frame_geom = view.frameGeometry()
+    screen_center = app.primaryScreen().availableGeometry().center()
+    frame_geom.moveCenter(screen_center)
+    view.move(frame_geom.topLeft())
+
+
+
     try:
         sys.exit(app.exec())
     except Exception:
