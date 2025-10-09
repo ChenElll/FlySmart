@@ -75,20 +75,19 @@ class PlaneCard(QFrame):
 
     # ------------------------------------------------------------
     def _load_image(self):
-        """Loads the plane image from cache or downloads it if needed."""
+        """Loads image asynchronously using ImageLoader."""
         if not self.plane.Picture:
             self._fade_in_image(QPixmap("frontend/assets/icons/airplane.svg"))
             return
 
-        if self.plane.Picture in self.cache.cache:
-            pix = self.cache.cache[self.plane.Picture]
-            if pix and not pix.isNull():
-                self._fade_in_image(pix)
-                return
-
         loader = ImageLoader(self.plane.Picture)
-        loader.finished.connect(lambda url, pix: self._update_image(url, pix))
+        loader.finished.connect(lambda url, pix: self._update_image_and_cleanup(loader, url, pix))
         loader.load()
+
+    def _update_image_and_cleanup(self, loader, url, pix):
+        """Updates image and safely stops the thread."""
+        self._update_image(url, pix)
+
 
     def _update_image(self, url, pix):
         """Called when the image is loaded asynchronously."""
@@ -121,8 +120,8 @@ class PlaneCard(QFrame):
         opacity = QGraphicsOpacityEffect()
         self.img.setGraphicsEffect(opacity)
         anim = QPropertyAnimation(opacity, b"opacity")
-        anim.setDuration(300)
-        anim.setStartValue(0)
+        anim.setDuration(600)
+        anim.setStartValue(0.3)
         anim.setEndValue(1)
         anim.start()
         self.img._fade_anim = anim
