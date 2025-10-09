@@ -53,7 +53,7 @@ class PlanePresenter:
             if not plane:
                 return False, "Plane not found."
 
-            plane.delete()
+            plane.delete(plane_id)
 
             if hasattr(self.view, "remove_plane_card"):
                 self.view.remove_plane_card(plane_id)

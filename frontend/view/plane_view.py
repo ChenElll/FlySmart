@@ -16,6 +16,8 @@ from PySide6.QtGui import QLinearGradient, QPalette, QColor, QBrush
 from .plane_card import PlaneCard
 from .image_loader import ImageLoader
 from .plane_details_dialog import PlaneDetailsDialog
+from PySide6.QtGui import QIcon
+
 
 
 # --------------------------
@@ -37,6 +39,7 @@ class PlaneView(QWidget):
 
         # מאפייני חלון
         self.setWindowTitle("FlySmart | Plane Manager")
+        self.setWindowIcon(QIcon("frontend/assets/icons/airplane.svg"))
         self.resize(1200, 780)
 
         # רקע תכלת בהיר מדורג

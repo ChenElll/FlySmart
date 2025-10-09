@@ -15,7 +15,7 @@ class PlaneDetailsDialog(QDialog):
         self.cache = cache_manager
         self.presenter = presenter
 
-        self.setWindowTitle(f"✈ Plane Details – {plane.Name}")
+        self.setWindowTitle(f"Plane Details – {plane.Name}")
         self.setWindowIcon(QIcon("frontend/assets/icons/airplane.svg"))
         self.setMinimumWidth(560)
         self.setStyleSheet("""
@@ -89,11 +89,11 @@ class PlaneDetailsDialog(QDialog):
 
         # מידע טקסטואלי
         info_texts = [
-            ("🆔 ID:", str(self.plane.PlaneId)),
-            ("🏭 Manufacturer:", self.plane.MadeBy),
-            ("📆 Year:", str(self.plane.Year)),
-            ("💺 Total Seats:", str(self.plane.NumOfSeats1 + self.plane.NumOfSeats2 + self.plane.NumOfSeats3)),
-            ("📸 Image URL:", self.plane.Picture or "None"),
+            ("ID:", str(self.plane.PlaneId)),
+            ("Manufacturer:", self.plane.MadeBy),
+            ("Year:", str(self.plane.Year)),
+            ("Total Seats:", str(self.plane.NumOfSeats1 + self.plane.NumOfSeats2 + self.plane.NumOfSeats3)),
+            ("Image URL:", self.plane.Picture or "None"),
         ]
 
         for label_text, value_text in info_texts:
@@ -109,7 +109,7 @@ class PlaneDetailsDialog(QDialog):
         layout.addWidget(frame)
 
         # כפתור עריכה בלבד
-        edit_btn = QPushButton("✏️ Edit Plane")
+        edit_btn = QPushButton("Edit Plane")
         edit_btn.setObjectName("edit")
         edit_btn.setFixedWidth(180)
         edit_btn.clicked.connect(self._edit_plane)

@@ -16,7 +16,7 @@ class PlaneFormDialog(QDialog):
         self.mode = mode
         self.plane = plane
 
-        self.setWindowTitle("✈ Edit Plane" if mode == "edit" else "✈ Add Plane")
+        self.setWindowTitle("Edit Plane" if mode == "edit" else "Add Plane")
         self.setWindowIcon(QIcon("frontend/assets/icons/airplane.svg"))
         self.setFixedWidth(520)
         self.setStyleSheet("""
@@ -131,15 +131,15 @@ class PlaneFormDialog(QDialog):
         btn_box = QHBoxLayout()
         btn_box.setSpacing(10)
 
-        save_btn = QPushButton("💾 Save")
+        save_btn = QPushButton("Save")
         save_btn.setObjectName("save")
         save_btn.clicked.connect(self._save_plane)
 
-        delete_btn = QPushButton("🗑️ Delete")
+        delete_btn = QPushButton("Delete")
         delete_btn.setObjectName("delete")
         delete_btn.clicked.connect(self._delete_plane)
 
-        cancel_btn = QPushButton("✖ Cancel")
+        cancel_btn = QPushButton("Cancel")
         cancel_btn.setObjectName("cancel")
         cancel_btn.clicked.connect(self.reject)
 
@@ -169,8 +169,8 @@ class PlaneFormDialog(QDialog):
 
         if not data["Name"]:
             return False, "Please enter a plane name."
-        if data["Year"] <= 0 or data["Year"] > current_year + 1:
-            return False, f"Year must be between 1 and {current_year + 1}."
+        if data["Year"] <= 1850 or data["Year"] > current_year + 1:
+            return False, f"Year must be between 1850 and {current_year + 1}."
         if not data["MadeBy"]:
             return False, "Please enter manufacturer name."
         if all(v == 0 for v in (data["NumOfSeats1"], data["NumOfSeats2"], data["NumOfSeats3"])):
