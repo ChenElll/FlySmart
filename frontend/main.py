@@ -7,8 +7,7 @@ from frontend.presenter.plane_presenter import PlanePresenter
 # זמנית, בתחילת main.py
 from frontend.model.plane_entity import PlaneEntity
 import inspect
-print("PlaneEntity loaded from:", inspect.getfile(PlaneEntity))
-print("create type:", type(PlaneEntity.create))
+
 
 
 # --- טיפול כולל בשגיאות כדי למנוע סגירה פתאומית ---

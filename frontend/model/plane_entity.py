@@ -83,4 +83,3 @@ class PlaneEntity:
         r.raise_for_status()
         return True
 
-print("Reloaded PlaneEntity definition ✅")

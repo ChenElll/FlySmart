@@ -2,8 +2,7 @@ from PySide6.QtWidgets import QMessageBox
 from ..model.plane_entity import PlaneEntity
 from ..view.plane_form_dialog import PlaneFormDialog
 from ..model.plane_entity import PlaneEntity
-print("Loaded PlaneEntity from:", PlaneEntity.__module__)
-print("create type:", type(PlaneEntity.create))
+
 
 
 class PlanePresenter:
@@ -26,7 +25,7 @@ class PlanePresenter:
         """הוספת מטוס חדש"""
         try:
             plane = PlaneEntity(**data)  # יוצרים מופע חדש
-            plane.create()               # שולחים לשרת
+            plane.create(data)               # שולחים לשרת
             self.view.add_plane_card(plane)
             return True, ""
         except Exception as e:
