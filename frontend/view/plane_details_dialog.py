@@ -1,14 +1,14 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QSizePolicy, QMessageBox
+    QFrame, QMessageBox
 )
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QIcon
 import requests
 
 
 class PlaneDetailsDialog(QDialog):
-    """חלון הצגת פרטי מטוס — תצוגה בלבד, עם כפתור עריכה בלבד"""
+    """Dialog window showing detailed information about a plane — view only, with an Edit button."""
     def __init__(self, parent, plane, cache_manager, presenter):
         super().__init__(parent)
         self.plane = plane
@@ -57,24 +57,25 @@ class PlaneDetailsDialog(QDialog):
 
     # ------------------------------------------------------------
     def _build_ui(self):
+        """Builds the visual layout and populates the dialog with plane details."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
 
-        # כותרת
+        # Header title
         title = QLabel(f"✈ {self.plane.Name}")
         title.setObjectName("title")
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
-        # תיבה מרכזית עם פרטים
+        # Main container frame for details
         frame = QFrame()
         frame.setObjectName("container")
         frame_layout = QVBoxLayout(frame)
         frame_layout.setContentsMargins(25, 25, 25, 25)
         frame_layout.setSpacing(14)
 
-        # תמונה
+        # Plane image section
         self.img_label = QLabel()
         self.img_label.setFixedSize(420, 220)
         self.img_label.setAlignment(Qt.AlignCenter)
@@ -87,7 +88,7 @@ class PlaneDetailsDialog(QDialog):
         frame_layout.addWidget(self.img_label, alignment=Qt.AlignCenter)
         self._load_image()
 
-        # מידע טקסטואלי
+        # Textual plane information
         info_texts = [
             ("ID:", str(self.plane.PlaneId)),
             ("Manufacturer:", self.plane.MadeBy),
@@ -108,7 +109,7 @@ class PlaneDetailsDialog(QDialog):
 
         layout.addWidget(frame)
 
-        # כפתור עריכה בלבד
+        # Edit button
         edit_btn = QPushButton("Edit Plane")
         edit_btn.setObjectName("edit")
         edit_btn.setFixedWidth(180)
@@ -117,7 +118,7 @@ class PlaneDetailsDialog(QDialog):
 
     # ------------------------------------------------------------
     def _load_image(self):
-        """טעינת תמונה עם fallback"""
+        """Loads the plane image from a URL or uses a fallback icon."""
         url = self.plane.Picture
         pix = QPixmap("frontend/assets/icons/airplane.svg")
 
@@ -137,10 +138,10 @@ class PlaneDetailsDialog(QDialog):
 
     # ------------------------------------------------------------
     def _edit_plane(self):
-        """פותח את חלון העריכה מתוך דיאלוג הפרטים"""
+        """Opens the Edit Plane dialog from within the details view."""
         try:
             self.presenter.open_edit_plane(self.plane)
-            # אחרי עריכה — נרענן את התצוגה
+            # Refresh details after editing
             refreshed = self.presenter.get_plane_by_id(self.plane.PlaneId)
             if refreshed:
                 self.plane = refreshed
@@ -149,6 +150,6 @@ class PlaneDetailsDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Failed to open edit dialog:\n{e}")
 
     def _rebuild_after_update(self):
-        """מרענן את תוכן הדיאלוג אחרי עדכון"""
+        """Rebuilds the dialog content after the plane is updated."""
         self.layout().itemAt(0).widget().setText(f"✈ {self.plane.Name}")
         self._load_image()
