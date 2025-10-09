@@ -347,12 +347,7 @@ class PlaneView(QWidget):
     # פתיחת חלון פרטים
     # ============================================================
     def open_plane_details(self, plane):
-        if hasattr(self, "active_details_dialog") and self.active_details_dialog:
-            try:
-                self.active_details_dialog.close()
-            except Exception:
-                pass
-
+        """פותח את חלון פרטי המטוס. שומר הפניה כדי לסגור אם המטוס נמחק"""
         dialog = PlaneDetailsDialog(self, plane, self.cache_manager, self.presenter)
         self.active_details_dialog = dialog
         dialog.exec()
@@ -380,12 +375,28 @@ class PlaneView(QWidget):
         self.show_status(f"✏️ Plane '{updated_plane.Name}' updated.")
 
     def remove_plane_card(self, plane_id):
+        """מסירה כרטיס לאחר מחיקה וגם סוגרת חלון פרטים אם פתוח"""
+        # סגירת חלון פרטים אם הוא פתוח על המטוס שנמחק
+        if hasattr(self, "active_details_dialog") and self.active_details_dialog:
+            try:
+                if (
+                    hasattr(self.active_details_dialog, "plane")
+                    and self.active_details_dialog.plane.PlaneId == plane_id
+                ):
+                    self.active_details_dialog.close()
+                    self.active_details_dialog = None
+            except Exception:
+                pass
+
+        # הסרת הכרטיס מהגריד
         for i in reversed(range(self.cards_layout.count())):
             w = self.cards_layout.itemAt(i).widget()
             if hasattr(w, "plane") and w.plane.PlaneId == plane_id:
                 w.deleteLater()
                 break
+
         self.show_status("🗑️ Plane deleted successfully.")
+
 
     def show_stats_dialog(self):
         """פותח את חלון הדיאגרמות או מרענן אם כבר פתוח"""
