@@ -1,3 +1,4 @@
+from email import header
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -17,7 +18,7 @@ from .plane_card import PlaneCard
 from .image_loader import ImageLoader
 from .plane_details_dialog import PlaneDetailsDialog
 from PySide6.QtGui import QIcon
-
+from .plane_stats_dialog import PlaneStatsDialog
 
 
 # --------------------------
@@ -52,7 +53,8 @@ class PlaneView(QWidget):
         self.setPalette(palette)
 
         # עיצוב כללי
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QWidget {
                 font-family: 'Segoe UI';
                 color: #1A1F1D;
@@ -115,7 +117,8 @@ class PlaneView(QWidget):
                 color: #3C4E56;
                 padding: 8px 14px;
             }
-        """)
+        """
+        )
 
         self.init_ui()
         self.presenter.load_planes()
@@ -135,10 +138,23 @@ class PlaneView(QWidget):
         header.addWidget(title)
         header.addStretch()
 
+        # --- כפתור הצגת דיאגרמות ---
+        self.stats_button = QPushButton("Show Statistics")
+        self.stats_button.setObjectName(
+            "addBtn"
+        )  # כדי לקבל את אותו סגנון כמו Add Plane
+        self.stats_button.clicked.connect(self.show_stats_dialog)
+        header.addWidget(self.stats_button)
+
+        # רווח קטן בין הכפתורים
+        header.addSpacing(8)
+
+        # --- כפתור הוספת מטוס ---
         add_btn = QPushButton("+ Add Plane")
         add_btn.setObjectName("addBtn")
         add_btn.clicked.connect(self.presenter.open_add_plane)
         header.addWidget(add_btn)
+
         layout.addLayout(header)
 
         # --- אזור סינון ---
@@ -210,6 +226,12 @@ class PlaneView(QWidget):
 
         self.apply_filters()
         self.show_status(f"✅ Loaded {len(planes)} planes")
+        if (
+            hasattr(self, "stats_dialog")
+            and self.stats_dialog
+            and self.stats_dialog.isVisible()
+        ):
+            self.stats_dialog.update_charts(planes)
 
     # ============================================================
     # סינון
@@ -224,13 +246,22 @@ class PlaneView(QWidget):
 
         filtered = []
         for p in self.planes:
-            match_name = (search_text in p.Name.lower() or search_text in p.MadeBy.lower())
+            match_name = (
+                search_text in p.Name.lower() or search_text in p.MadeBy.lower()
+            )
             match_maker = maker == "All Manufacturers" or p.MadeBy == maker
             match_year = year == "All Years" or str(p.Year) == year
             if match_name and match_maker and match_year:
                 filtered.append(p)
 
         self.display_cards(filtered)
+        # אם חלון הדיאגרמות פתוח — נעדכן אותו בזמן אמת
+        if (
+            hasattr(self, "stats_dialog")
+            and self.stats_dialog
+            and self.stats_dialog.isVisible()
+        ):
+            self.stats_dialog.update_charts(filtered)
 
     def reset_filters(self):
         self.search_input.clear()
@@ -258,7 +289,9 @@ class PlaneView(QWidget):
                 return
 
             batch_size = 6
-            planes_to_load = self._pending_planes[self._current_index:self._current_index + batch_size]
+            planes_to_load = self._pending_planes[
+                self._current_index : self._current_index + batch_size
+            ]
             if not planes_to_load:
                 return
 
@@ -320,6 +353,24 @@ class PlaneView(QWidget):
                 w.deleteLater()
                 break
         self.show_status("🗑️ Plane deleted successfully.")
+
+    def show_stats_dialog(self):
+        """פותח את חלון הדיאגרמות או מרענן אם כבר פתוח"""
+        planes = self.presenter.get_displayed_planes()
+
+        # אם החלון כבר פתוח — רק נרענן אותו
+        if (
+            hasattr(self, "stats_dialog")
+            and self.stats_dialog
+            and self.stats_dialog.isVisible()
+        ):
+            self.stats_dialog.update_charts(planes)
+            self.stats_dialog.raise_()
+            self.stats_dialog.activateWindow()
+        else:
+            # אם לא פתוח — ניצור אחד חדש
+            self.stats_dialog = PlaneStatsDialog(planes, self)
+            self.stats_dialog.show()
 
     def show_error(self, msg):
         QMessageBox.critical(self, "Error", msg)

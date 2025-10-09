@@ -102,3 +102,23 @@ class PlanePresenter:
             return PlaneEntity.get_by_id(plane_id)
         except Exception:
             return None
+
+
+    def get_displayed_planes(self):
+        """מחזיר את רשימת המטוסים המסוננים שמוצגים כרגע במסך"""
+        if hasattr(self.view, "planes"):
+            search_text = self.view.search_input.text().strip().lower()
+            maker = self.view.made_by_combo.currentText()
+            year = self.view.year_combo.currentText()
+
+            filtered = []
+            for p in self.view.planes:
+                match_name = (
+                    search_text in p.Name.lower() or search_text in p.MadeBy.lower()
+                )
+                match_maker = maker == "All Manufacturers" or p.MadeBy == maker
+                match_year = year == "All Years" or str(p.Year) == year
+                if match_name and match_maker and match_year:
+                    filtered.append(p)
+            return filtered
+        return []
