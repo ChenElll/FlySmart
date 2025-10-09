@@ -7,8 +7,8 @@ from .image_loader import ImageLoader
 
 
 class PlaneCard(QFrame):
-    """כרטיס תצוגת מטוס עם תמונה, פרטים ואפקטים"""
-    clicked = Signal(object)  # נשלח את אובייקט המטוס בעת לחיצה
+    """Display card representing a single plane, including image, details, and hover effects."""
+    clicked = Signal(object)  # Emits the plane object when clicked
 
     def __init__(self, plane, cache_manager, presenter):
         super().__init__()
@@ -24,7 +24,7 @@ class PlaneCard(QFrame):
 
     # ------------------------------------------------------------
     def _build_ui(self):
-        """בונה את מבנה הכרטיס"""
+        """Builds the visual layout of the plane card."""
         self.setStyleSheet("""
             QFrame {
                 background-color: white;
@@ -46,27 +46,27 @@ class PlaneCard(QFrame):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
 
-        # צל קל ועדין
+        # Subtle shadow effect
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(30)
         shadow.setOffset(0, 5)
         shadow.setColor(QColor(0, 0, 0, 25))
         self.setGraphicsEffect(shadow)
 
-        # תמונה
+        # Plane image placeholder
         self.img = QLabel()
         self.img.setFixedSize(QSize(260, 150))
         self.img.setAlignment(Qt.AlignCenter)
         self.img.setScaledContents(False)
         layout.addWidget(self.img, alignment=Qt.AlignCenter)
 
-        # שם המטוס
+        # Plane name
         name = QLabel(self.plane.Name)
         name.setObjectName("cardTitle")
         name.setAlignment(Qt.AlignCenter)
         layout.addWidget(name)
 
-        # פרטים נוספים
+        # Plane info line
         total = self.plane.NumOfSeats1 + self.plane.NumOfSeats2 + self.plane.NumOfSeats3
         info = QLabel(f"{self.plane.MadeBy} · {self.plane.Year} · Seats: {total}")
         info.setObjectName("cardSub")
@@ -75,9 +75,8 @@ class PlaneCard(QFrame):
 
     # ------------------------------------------------------------
     def _load_image(self):
-        """טעינת תמונה מה־cache או מהאינטרנט"""
+        """Loads the plane image from cache or downloads it if needed."""
         if not self.plane.Picture:
-            # תמונת ברירת מחדל אם אין URL
             self._fade_in_image(QPixmap("frontend/assets/icons/airplane.svg"))
             return
 
@@ -92,12 +91,11 @@ class PlaneCard(QFrame):
         loader.load()
 
     def _update_image(self, url, pix):
-        """מתעדכן לאחר טעינת תמונה מהאינטרנט"""
+        """Called when the image is loaded asynchronously."""
         if self._destroyed:
             return
 
         if not pix or pix.isNull():
-            # fallback אם נכשל
             self._fade_in_image(QPixmap("frontend/assets/icons/airplane.svg"))
             return
 
@@ -106,11 +104,10 @@ class PlaneCard(QFrame):
 
     # ------------------------------------------------------------
     def _fade_in_image(self, pix):
-        """מציג תמונה בהדרגה (fade-in), כולל הגנה אם pix חסר"""
+        """Applies a fade-in animation when the image appears."""
         if self._destroyed:
             return
 
-        # הגנה: אם None → fallback לתמונת ברירת מחדל
         if pix is None or not hasattr(pix, "scaled") or pix.isNull():
             pix = QPixmap("frontend/assets/icons/airplane.svg")
 
@@ -121,7 +118,6 @@ class PlaneCard(QFrame):
         )
         self.img.setPixmap(scaled)
 
-        # אפקט שקיפות
         opacity = QGraphicsOpacityEffect()
         self.img.setGraphicsEffect(opacity)
         anim = QPropertyAnimation(opacity, b"opacity")
@@ -133,22 +129,60 @@ class PlaneCard(QFrame):
 
     # ------------------------------------------------------------
     def enterEvent(self, event):
-        """אפקט hover עדין"""
+        """Hover effect: soft shadow, light background, and slight upward lift."""
         eff = self.graphicsEffect()
         if isinstance(eff, QGraphicsDropShadowEffect):
-            eff.setBlurRadius(35)
-            eff.setOffset(0, 8)
-            eff.setColor(QColor(0, 0, 0, 35))
+            eff.setBlurRadius(60)
+            eff.setOffset(0, 12)
+            eff.setColor(QColor(0, 0, 0, 90))
+
+        # Subtle background color change
+        self.setStyleSheet(self.styleSheet() + """
+            QFrame {
+                background-color: #F9FCFF;
+                border: 1px solid #B5D9E8;
+            }
+        """)
+
+        # Lift animation
+        self._hover_anim = QPropertyAnimation(self, b"geometry")
+        self._hover_anim.setDuration(150)
+        start_rect = self.geometry()
+        end_rect = start_rect.translated(0, -6)
+        self._hover_anim.setStartValue(start_rect)
+        self._hover_anim.setEndValue(end_rect)
+        self._hover_anim.start()
+
         super().enterEvent(event)
 
     def leaveEvent(self, event):
+        """Restores card position, shadow, and colors when hover ends."""
         eff = self.graphicsEffect()
         if isinstance(eff, QGraphicsDropShadowEffect):
             eff.setBlurRadius(30)
             eff.setOffset(0, 5)
             eff.setColor(QColor(0, 0, 0, 25))
+
+        self.setStyleSheet(self.styleSheet() + """
+            QFrame {
+                background-color: white;
+                border: 1px solid #D8E8EE;
+            }
+        """)
+
+        # Return animation
+        self._hover_back_anim = QPropertyAnimation(self, b"geometry")
+        self._hover_back_anim.setDuration(150)
+        end_rect = self.geometry()
+        start_rect = end_rect.translated(0, 6)
+        self._hover_back_anim.setStartValue(end_rect)
+        self._hover_back_anim.setEndValue(start_rect)
+        self._hover_back_anim.start()
+
         super().leaveEvent(event)
 
+    # ------------------------------------------------------------
     def mousePressEvent(self, event):
+        """Emit signal when card is clicked."""
         if not self._destroyed:
             self.clicked.emit(self.plane)
