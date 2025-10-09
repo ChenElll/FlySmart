@@ -1,24 +1,19 @@
 from PySide6.QtWidgets import (
-    QDialog,
-    QVBoxLayout,
-    QLabel,
-    QSizePolicy,
-    QScrollArea,
-    QWidget,
-    QHBoxLayout,
+    QDialog, QVBoxLayout, QLabel, QSizePolicy, QScrollArea, QWidget, QHBoxLayout,
+    QPushButton, QFileDialog, QMessageBox
 )
 from PySide6.QtCharts import (
-    QChart,
-    QChartView,
-    QPieSeries,
-    QBarSeries,
-    QBarSet,
-    QBarCategoryAxis,
-    QValueAxis,
+    QChart, QChartView, QPieSeries, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis
 )
-from PySide6.QtCore import Qt, QEvent, QPropertyAnimation, QRect
-from PySide6.QtGui import QFont, QPainter, QColor
-from PySide6.QtWidgets import QLabel
+from PySide6.QtCore import (
+    Qt, QEvent, QSize, QTimer, QPropertyAnimation, QStandardPaths, QSettings
+)
+from PySide6.QtGui import (
+    QFont, QPainter, QColor, QIcon, QPixmap, QImage
+)
+import os
+from datetime import datetime
+
 
 
 
@@ -59,7 +54,34 @@ class PlaneStatsDialog(QDialog):
         title = QLabel("Planes Overview")
         title.setFont(QFont("Segoe UI", 20, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title)
+        # מעטפת עליונה עם כפתור ייצוא בצד שמאל וכותרת במרכז
+        header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(0, 0, 0, 0)
+
+        # כפתור ייצוא קטן (שמאל למעלה)
+        export_btn = QPushButton()
+        export_btn.setIcon(QIcon(r"frontend/assets/icons/file-up.svg"))
+        export_btn.setIconSize(QSize(22, 22))
+        export_btn.setFixedSize(40, 40)
+        export_btn.setCursor(Qt.PointingHandCursor)
+        export_btn.setStyleSheet("""
+            QPushButton {
+                border: none;
+                background: transparent;
+            }
+            QPushButton:hover {
+                background-color: rgba(0, 0, 0, 0.05);
+                border-radius: 8px;
+            }
+        """)
+        export_btn.setToolTip("Export charts")
+
+        # כותרת באמצע
+        header_layout.addWidget(export_btn, alignment=Qt.AlignLeft)
+        header_layout.addWidget(title, alignment=Qt.AlignCenter)
+        header_layout.addStretch()
+
+        main_layout.addLayout(header_layout)
 
         # --- שני תרשימים זה לצד זה (responsive) ---
         self.chart_views = []
@@ -92,6 +114,7 @@ class PlaneStatsDialog(QDialog):
 
         # טען נתונים
         self.update_charts(planes)
+        export_btn.clicked.connect(self.export_charts_to_png)
 
     # ------------------------------------------------------------
     def _add_chart(self, layout, title_text):
@@ -378,3 +401,112 @@ class PlaneStatsDialog(QDialog):
             parent_layout.addLayout(new_layout)
 
         self.charts_row = new_layout
+
+
+    def export_charts_to_png(self):
+        """Exports both charts vertically into one PNG image with logo, colors, timestamp, and toast."""
+        try:
+            settings = QSettings("FlySmart", "StatsDialog")
+            last_dir = settings.value("last_export_dir")
+            if not last_dir:
+                downloads = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
+                last_dir = downloads or os.path.expanduser("~/Downloads")
+
+            # --- שם קובץ עם תאריך ---
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+            default_name = f"planes_statistics_{timestamp}.png"
+
+            # --- בחירת מיקום ---
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Charts As",
+                os.path.join(last_dir, default_name),
+                "PNG Files (*.png)"
+            )
+            if not file_path:
+                return
+
+            settings.setValue("last_export_dir", os.path.dirname(file_path))
+
+            # --- צילום התרשימים ---
+            pixmaps = []
+            for chart_view in self.chart_views:
+                pm = QPixmap(chart_view.size())
+                pm.fill(Qt.transparent)
+                painter = QPainter(pm)
+                chart_view.render(painter)
+                painter.end()
+                pixmaps.append(pm)
+
+            spacing = 40
+            logo_height = 80
+            total_height = sum(pm.height() for pm in pixmaps) + spacing * (len(pixmaps) + 1) + logo_height
+            total_width = max(pm.width() for pm in pixmaps) + spacing * 2
+
+            final_image = QImage(total_width, total_height, QImage.Format_ARGB32)
+            final_image.fill(QColor("#F8FBFD"))
+            painter = QPainter(final_image)
+
+            y = spacing
+            for pm in pixmaps:
+                x = (total_width - pm.width()) // 2
+                painter.drawPixmap(x, y, pm)
+                y += pm.height() + spacing
+
+            logo_path = r"frontend/assets/icons/airplane.svg"
+            if os.path.exists(logo_path):
+                logo = QPixmap(logo_path)
+                scaled_logo = logo.scaled(QSize(64, 64), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                x = (total_width - scaled_logo.width()) // 2
+                painter.setOpacity(0.8)
+                painter.drawPixmap(x, y, scaled_logo)
+
+            painter.end()
+            final_image.save(file_path, "PNG")
+
+            # === Toast Notification ===
+            toast = QWidget(self)
+            layout = QHBoxLayout(toast)
+            layout.setContentsMargins(12, 8, 12, 8)
+            layout.setSpacing(10)
+
+            icon_label = QLabel()
+            icon_pix = QPixmap(r"frontend/assets/icons/download.svg").scaled(22, 22, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            icon_label.setPixmap(icon_pix)
+
+            text_label = QLabel("Charts saved successfully")
+            text_label.setStyleSheet("""
+                QLabel {
+                    color: white;
+                    font-size: 11pt;
+                    font-weight: bold;
+                }
+            """)
+
+            layout.addWidget(icon_label)
+            layout.addWidget(text_label)
+
+            toast.setStyleSheet("""
+                QWidget {
+                    background-color: rgba(50, 120, 180, 0.9);
+                    border-radius: 10px;
+                }
+            """)
+            toast.adjustSize()
+
+            margin = 20
+            x = self.width() - toast.width() - margin
+            y = self.height() - toast.height() - margin
+            toast.move(x, y)
+            toast.show()
+
+            # Fade out
+            fade = QPropertyAnimation(toast, b"windowOpacity")
+            fade.setDuration(1800)
+            fade.setStartValue(1)
+            fade.setEndValue(0)
+            fade.start()
+            QTimer.singleShot(2000, toast.deleteLater)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", f"An error occurred:\n{str(e)}")
