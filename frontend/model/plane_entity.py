@@ -6,6 +6,10 @@ from .http import session, PLANES_URL, DEFAULT_TIMEOUT
 
 @dataclass
 class PlaneEntity:
+    """
+    Data model representing a single plane entity.
+    Handles conversion to/from dicts and REST API communication.
+    """
     PlaneId: Optional[int] = None
     Name: str = ""
     Year: int = 0
@@ -18,6 +22,10 @@ class PlaneEntity:
     # ------------------------------------------------------------
     @classmethod
     def from_dict(cls, d: dict):
+        """
+        Creates a PlaneEntity instance from a dictionary (usually from API JSON).
+        Handles both PlaneId and FlightId for flexibility.
+        """
         pid = d.get("PlaneId") or d.get("FlightId")
         return cls(
             PlaneId=int(pid) if pid else None,
@@ -32,6 +40,10 @@ class PlaneEntity:
 
     # ------------------------------------------------------------
     def to_dict(self, include_id=True):
+        """
+        Converts this PlaneEntity instance to a dictionary
+        suitable for sending as JSON in API requests.
+        """
         data = {
             "Name": self.Name,
             "Year": self.Year,
@@ -48,12 +60,20 @@ class PlaneEntity:
     # ------------------------------------------------------------
     @staticmethod
     def get_all() -> List["PlaneEntity"]:
+        """
+        Fetches all planes from the API.
+        Returns a list of PlaneEntity instances.
+        """
         r = session.get(PLANES_URL, timeout=DEFAULT_TIMEOUT)
         r.raise_for_status()
         return [PlaneEntity.from_dict(p) for p in r.json()]
 
     @staticmethod
     def get_by_id(plane_id: int) -> Optional["PlaneEntity"]:
+        """
+        Fetches a single plane by its ID from the API.
+        Returns a PlaneEntity instance or None if not found.
+        """
         r = session.get(f"{PLANES_URL}/{plane_id}", timeout=DEFAULT_TIMEOUT)
         r.raise_for_status()
         return PlaneEntity.from_dict(r.json())
@@ -61,16 +81,21 @@ class PlaneEntity:
     # ------------------------------------------------------------
     @staticmethod
     def create(data: dict) -> Optional["PlaneEntity"]:
-        """יוצר מטוס חדש בשרת ומחזיר מופע PlaneEntity"""
+        """
+        Creates a new plane on the server using POST request.
+        Returns a PlaneEntity representing the created object.
+        """
         r = session.post(PLANES_URL, json=data, timeout=DEFAULT_TIMEOUT)
         r.raise_for_status()
         created = r.json()
         return PlaneEntity.from_dict(created)
 
-
     @staticmethod
     def update(plane_id: int, data: dict) -> Optional["PlaneEntity"]:
-        """מעדכן מטוס קיים"""
+        """
+        Updates an existing plane on the server using PUT request.
+        Returns a PlaneEntity representing the updated object.
+        """
         r = session.put(f"{PLANES_URL}/{plane_id}", json=data, timeout=DEFAULT_TIMEOUT)
         r.raise_for_status()
         updated = r.json()
@@ -78,8 +103,10 @@ class PlaneEntity:
 
     @staticmethod
     def delete(plane_id: int) -> bool:
-        """מוחק מטוס לפי מזהה"""
+        """
+        Deletes a plane by its ID using DELETE request.
+        Returns True if deletion was successful.
+        """
         r = session.delete(f"{PLANES_URL}/{plane_id}", timeout=DEFAULT_TIMEOUT)
         r.raise_for_status()
         return True
-
