@@ -1,4 +1,3 @@
-from email import header
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -17,22 +16,21 @@ from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QLinearGradient, QPalette, QColor, QBrush, QIcon
 
 from .plane_card import PlaneCard
-from .image_loader import ImageLoader
 from .plane_details_dialog import PlaneDetailsDialog
 from .plane_stats_dialog import PlaneStatsDialog
 
 
-# --------------------------
-# Cache פשוט לתמונות
-# --------------------------
+# ============================================================
+# Simple cache for storing loaded images (QPixmaps)
+# ============================================================
 class SimpleCache:
     def __init__(self):
-        self.cache = {}  # כתובת → QPixmap
+        self.cache = {}  # URL or path → QPixmap
 
 
-# --------------------------
-# ComboBox רב-בחירתי
-# --------------------------
+# ============================================================
+# Custom ComboBox allowing multiple selections with checkboxes
+# ============================================================
 class MultiSelectComboBox(QComboBox):
     selection_changed = Signal(list)
 
@@ -46,6 +44,7 @@ class MultiSelectComboBox(QComboBox):
         self.popup_widget.itemChanged.connect(self.update_selection)
 
     def set_items(self, items):
+        """Fill the combo box with a list of checkable items."""
         self.popup_widget.clear()
         for item_text in items:
             item = QListWidgetItem(item_text)
@@ -54,6 +53,7 @@ class MultiSelectComboBox(QComboBox):
             self.popup_widget.addItem(item)
 
     def update_selection(self):
+        """Update the displayed text and emit the selected items list."""
         selected = [
             self.popup_widget.item(i).text()
             for i in range(self.popup_widget.count())
@@ -64,7 +64,8 @@ class MultiSelectComboBox(QComboBox):
 
 
 # ============================================================
-# תצוגת ניהול מטוסים
+# Plane Management View – main window of the application
+# Displays plane cards, filters, and statistics
 # ============================================================
 class PlaneView(QWidget):
     def __init__(self, presenter):
@@ -72,15 +73,15 @@ class PlaneView(QWidget):
         self.presenter = presenter
         self.presenter.view = self
 
-        # ניהול תמונות (cache)
+        # Initialize cache for images
         self.cache_manager = SimpleCache()
 
-        # מאפייני חלון
+        # --- Window properties ---
         self.setWindowTitle("FlySmart | Plane Manager")
         self.setWindowIcon(QIcon("frontend/assets/icons/airplane.svg"))
         self.resize(1200, 780)
 
-        # רקע תכלת בהיר מדורג
+        # Light blue gradient background
         palette = QPalette()
         grad = QLinearGradient(0, 0, 0, self.height())
         grad.setColorAt(0, QColor("#FFFFFF"))
@@ -89,7 +90,7 @@ class PlaneView(QWidget):
         self.setAutoFillBackground(True)
         self.setPalette(palette)
 
-        # עיצוב כללי
+        # Global style for the window
         self.setStyleSheet(
             """
             QWidget {
@@ -157,39 +158,43 @@ class PlaneView(QWidget):
         """
         )
 
+        # Build the user interface
         self.init_ui()
+
+        # Load initial planes through the presenter
         self.presenter.load_planes()
 
     # ============================================================
-    # בניית המסך הראשי
+    # UI Construction
     # ============================================================
     def init_ui(self):
+        """Build the main screen layout."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(10)
 
-        # --- כותרת עליונה ---
+        # --- Header (title and buttons) ---
         header = QHBoxLayout()
         title = QLabel("Plane Manager")
         title.setObjectName("title")
         header.addWidget(title)
         header.addStretch()
 
-        # --- כפתור הצגת דיאגרמות ---
+        # Button: show statistics window
         self.stats_button = QPushButton("Show Statistics")
         self.stats_button.setObjectName("addBtn")
         self.stats_button.clicked.connect(self.show_stats_dialog)
         header.addWidget(self.stats_button)
         header.addSpacing(8)
 
-        # --- כפתור הוספת מטוס ---
+        # Button: add new plane
         add_btn = QPushButton("+ Add Plane")
         add_btn.setObjectName("addBtn")
         add_btn.clicked.connect(self.presenter.open_add_plane)
         header.addWidget(add_btn)
         layout.addLayout(header)
 
-        # --- אזור סינון ---
+        # --- Filters section ---
         filters = QHBoxLayout()
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search by name or manufacturer...")
@@ -213,7 +218,7 @@ class PlaneView(QWidget):
         filters.addWidget(clear_btn)
         layout.addLayout(filters)
 
-        # --- גריד הכרטיסים בתוך Scroll ---
+        # --- Scroll area with plane cards ---
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         container = QWidget()
@@ -224,28 +229,29 @@ class PlaneView(QWidget):
         self.scroll.setWidget(container)
         layout.addWidget(self.scroll)
 
-        # --- שורת סטטוס ---
+        # --- Status bar ---
         self.status_label = QLabel("Status: ⏳ Loading...")
         self.status_label.setObjectName("status")
         layout.addWidget(self.status_label)
 
     # ------------------------------------------------------------
     def show_status(self, text):
+        """Update status label with new message."""
         self.status_label.setText(f"Status: {text}")
 
     # ============================================================
-    # הצגת רשימת מטוסים
+    # Display planes list
     # ============================================================
     def show_planes(self, planes):
+        """Display all loaded planes and refresh filters."""
         self.planes = planes
         makers = sorted(set(p.MadeBy for p in planes if p.MadeBy))
         years = sorted(set(str(p.Year) for p in planes if p.Year))
 
-        # מילוי מחדש של רשימות
         self.made_by_combo.set_items(makers)
         self.year_combo.set_items(years)
 
-        # מנקים כל בחירה קודמת
+        # Reset previous selections
         for combo in [self.made_by_combo, self.year_combo]:
             combo.lineEdit().clear()
             for i in range(combo.popup_widget.count()):
@@ -255,6 +261,7 @@ class PlaneView(QWidget):
         self.apply_filters()
         self.show_status(f"✅ Loaded {len(planes)} planes")
 
+        # Refresh stats dialog if it's open
         if (
             hasattr(self, "stats_dialog")
             and self.stats_dialog
@@ -263,9 +270,10 @@ class PlaneView(QWidget):
             self.stats_dialog.update_charts(planes)
 
     # ============================================================
-    # סינון
+    # Filtering logic
     # ============================================================
     def apply_filters(self):
+        """Filter plane list based on search text, manufacturer, and year."""
         if not hasattr(self, "planes"):
             return
 
@@ -292,6 +300,8 @@ class PlaneView(QWidget):
                 filtered.append(p)
 
         self.display_cards(filtered)
+
+        # Update statistics if window is open
         if (
             hasattr(self, "stats_dialog")
             and self.stats_dialog
@@ -300,6 +310,7 @@ class PlaneView(QWidget):
             self.stats_dialog.update_charts(filtered)
 
     def reset_filters(self):
+        """Clear all filter selections and show all planes again."""
         self.search_input.clear()
         for combo in [self.made_by_combo, self.year_combo]:
             combo.lineEdit().clear()
@@ -309,9 +320,10 @@ class PlaneView(QWidget):
         self.apply_filters()
 
     # ============================================================
-    # הצגת כרטיסים
+    # Plane cards display
     # ============================================================
     def display_cards(self, planes):
+        """Render plane cards inside the scrollable grid."""
         for i in reversed(range(self.cards_layout.count())):
             w = self.cards_layout.itemAt(i).widget()
             if w:
@@ -321,6 +333,7 @@ class PlaneView(QWidget):
         self._current_index = 0
 
         def load_next_batch():
+            """Load plane cards gradually for smooth UI performance."""
             if not hasattr(self, "_pending_planes"):
                 return
 
@@ -344,19 +357,20 @@ class PlaneView(QWidget):
         load_next_batch()
 
     # ============================================================
-    # פתיחת חלון פרטים
+    # Plane details dialog
     # ============================================================
     def open_plane_details(self, plane):
-        """פותח את חלון פרטי המטוס. שומר הפניה כדי לסגור אם המטוס נמחק"""
+        """Open modal dialog showing plane details."""
         dialog = PlaneDetailsDialog(self, plane, self.cache_manager, self.presenter)
         self.active_details_dialog = dialog
         dialog.exec()
         self.active_details_dialog = None
 
     # ============================================================
-    # פונקציות עזר לעדכון כרטיסים
+    # Plane card helper functions
     # ============================================================
     def add_plane_card(self, plane):
+        """Add new plane card to grid layout."""
         card = PlaneCard(plane, self.cache_manager, self.presenter)
         card.clicked.connect(lambda p=plane: self.open_plane_details(p))
         total = self.cards_layout.count()
@@ -365,6 +379,7 @@ class PlaneView(QWidget):
         self.show_status(f"✅ Plane '{plane.Name}' added.")
 
     def refresh_plane_card(self, updated_plane):
+        """Refresh a plane card after editing its details."""
         for i in range(self.cards_layout.count()):
             w = self.cards_layout.itemAt(i).widget()
             if hasattr(w, "plane") and w.plane.PlaneId == updated_plane.PlaneId:
@@ -375,8 +390,7 @@ class PlaneView(QWidget):
         self.show_status(f"✏️ Plane '{updated_plane.Name}' updated.")
 
     def remove_plane_card(self, plane_id):
-        """מסירה כרטיס לאחר מחיקה וגם סוגרת חלון פרטים אם פתוח"""
-        # סגירת חלון פרטים אם הוא פתוח על המטוס שנמחק
+        """Remove plane card and close its details dialog if open."""
         if hasattr(self, "active_details_dialog") and self.active_details_dialog:
             try:
                 if (
@@ -388,7 +402,6 @@ class PlaneView(QWidget):
             except Exception:
                 pass
 
-        # הסרת הכרטיס מהגריד
         for i in reversed(range(self.cards_layout.count())):
             w = self.cards_layout.itemAt(i).widget()
             if hasattr(w, "plane") and w.plane.PlaneId == plane_id:
@@ -397,10 +410,11 @@ class PlaneView(QWidget):
 
         self.show_status("🗑️ Plane deleted successfully.")
 
-
+    # ============================================================
+    # Statistics window
+    # ============================================================
     def show_stats_dialog(self):
-        """פותח את חלון הדיאגרמות או מרענן אם כבר פתוח"""
-        # ⚙️ נשתמש ברשימת המטוסים המסוננים כרגע, לא בכל המטוסים
+        """Open or refresh the statistics dialog window."""
         filtered_planes = []
         if hasattr(self, "_pending_planes"):
             filtered_planes = self._pending_planes
@@ -411,7 +425,6 @@ class PlaneView(QWidget):
             QMessageBox.information(self, "No Data", "No planes to display in statistics.")
             return
 
-        # אם החלון כבר פתוח — רק נעדכן אותו
         if (
             hasattr(self, "stats_dialog")
             and self.stats_dialog
@@ -421,10 +434,12 @@ class PlaneView(QWidget):
             self.stats_dialog.raise_()
             self.stats_dialog.activateWindow()
         else:
-            # אחרת נפתח חדש עם המטוסים המסוננים
             self.stats_dialog = PlaneStatsDialog(filtered_planes, self)
             self.stats_dialog.show()
 
-
+    # ============================================================
+    # Error message helper
+    # ============================================================
     def show_error(self, msg):
+        """Display a critical error message dialog."""
         QMessageBox.critical(self, "Error", msg)
