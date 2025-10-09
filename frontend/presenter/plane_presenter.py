@@ -1,19 +1,17 @@
 from PySide6.QtWidgets import QMessageBox
 from ..model.plane_entity import PlaneEntity
 from ..view.plane_form_dialog import PlaneFormDialog
-from ..model.plane_entity import PlaneEntity
-
 
 
 class PlanePresenter:
-    """שכבת ביניים בין ה־View למודל — מנהלת CRUD למטוסים"""
+    """Presenter layer that connects the View and Model — manages all CRUD operations for planes."""
 
     def __init__(self, view):
-        self.view = view
+        self.view = view  # Reference to the View layer (plane_view)
 
     # ------------------------------------------------------------
     def load_planes(self):
-        """טוען את רשימת המטוסים מהשרת"""
+        """Fetches all planes from the server and displays them in the view."""
         try:
             planes = PlaneEntity.get_all()
             self.view.show_planes(planes)
@@ -22,21 +20,22 @@ class PlanePresenter:
 
     # ------------------------------------------------------------
     def add_plane(self, data: dict):
-        """הוספת מטוס חדש"""
+        """Creates a new plane record and displays it in the view."""
         try:
-            plane = PlaneEntity(**data)  # יוצרים מופע חדש
-            plane.create(data)               # שולחים לשרת
-            self.view.add_plane_card(plane)
+            plane = PlaneEntity(**data)      # Create PlaneEntity instance from the input data
+            plane.create(data)               # Send POST request to backend
+            self.view.add_plane_card(plane)  # Add the new card visually
             return True, ""
         except Exception as e:
             return False, f"Error adding plane: {e}"
 
     # ------------------------------------------------------------
     def update_plane(self, plane_id: int, data: dict):
-        """עדכון נתוני מטוס קיים"""
+        """Updates an existing plane's data both in the backend and the view."""
         try:
             plane = PlaneEntity.update(plane_id, data)
             if plane:
+                # Refresh the updated card visually, if supported by the view
                 if hasattr(self.view, "refresh_plane_card"):
                     self.view.refresh_plane_card(plane)
                 return True, ""
@@ -44,17 +43,17 @@ class PlanePresenter:
         except Exception as e:
             return False, f"Error updating plane: {e}"
 
-
     # ------------------------------------------------------------
     def delete_plane(self, plane_id: int):
-        """מחיקת מטוס לפי מזהה"""
+        """Deletes a plane from both backend and the view."""
         try:
             plane = PlaneEntity.get_by_id(plane_id)
             if not plane:
                 return False, "Plane not found."
 
-            plane.delete(plane_id)
+            plane.delete(plane_id)  # Request deletion from backend
 
+            # Remove the card from the visual view if supported
             if hasattr(self.view, "remove_plane_card"):
                 self.view.remove_plane_card(plane_id)
 
@@ -64,7 +63,7 @@ class PlanePresenter:
 
     # ------------------------------------------------------------
     def save_plane(self, mode: str, data: dict, plane=None):
-        """שומר או מעדכן מטוס בהתאם למצב"""
+        """Saves or updates a plane depending on the given mode (add/edit)."""
         try:
             if mode == "add":
                 return self.add_plane(data)
@@ -77,35 +76,38 @@ class PlanePresenter:
 
     # ------------------------------------------------------------
     def open_add_plane(self):
-        """פותח חלון להוספת מטוס חדש"""
+        """Opens a dialog for adding a new plane and reloads data after successful save."""
         try:
             dialog = PlaneFormDialog(self, mode="add")
             if dialog.exec():
-                self.load_planes()  # רענון לאחר שמירה
+                self.load_planes()  # Refresh view after adding
         except Exception as e:
             QMessageBox.critical(self.view, "Error", f"Failed to open Add Plane dialog:\n{e}")
 
     # ------------------------------------------------------------
     def open_edit_plane(self, plane):
-        """פותח חלון עריכה של מטוס קיים"""
+        """Opens a dialog for editing an existing plane and reloads data after update."""
         try:
             dialog = PlaneFormDialog(self, mode="edit", plane=plane)
             if dialog.exec():
-                self.load_planes()  # רענון לאחר עדכון
+                self.load_planes()  # Refresh view after update
         except Exception as e:
             QMessageBox.critical(self.view, "Error", f"Failed to open Edit Plane dialog:\n{e}")
 
     # ------------------------------------------------------------
     def get_plane_by_id(self, plane_id: int):
-        """מביא מטוס ספציפי מהשרת לרענון"""
+        """Fetches a specific plane by ID for refreshing the details view."""
         try:
             return PlaneEntity.get_by_id(plane_id)
         except Exception:
             return None
 
-
+    # ------------------------------------------------------------
     def get_displayed_planes(self):
-        """מחזיר את רשימת המטוסים המסוננים שמוצגים כרגע במסך"""
+        """
+        Returns the list of currently displayed (filtered) planes in the view.
+        Filters by search text, manufacturer, and year based on user input.
+        """
         if hasattr(self.view, "planes"):
             search_text = self.view.search_input.text().strip().lower()
             maker = self.view.made_by_combo.currentText()
